@@ -1,73 +1,70 @@
-""" CESTModel - Class for Producing a CEST Spectrum
- This class will produce a CEST z-Spectrum from a set of input values.
- Supports N pools, with the 1st pool representing the water pool, and the
- Nth pool representing the macromolecular pool with a Gaussian,
- Lorentzian, Super-Lorentzian, or no lineshape.
-
- Constructor Syntax:  Obj = CESTClass(M0,T1,T2,Rx,B0,ChemShift,lineshape)
- 
- Arguments:
-   M0 - a 1xN vector listing the relative pool sizes, with the 1st pool
-        representing water
-   T1 - A 1xN vector listing the T1's (s) of each pool
-   T2 - A 1xN vector listing the T2's (s) of each pool
-   Rx - A 1x(N-1) vector listing the exchange rates (s) between each pool
-        and water.
-   B0 - The field strength in tesla.
-   ChemShift - A 1xN vector listing the relative 
-
- Public Methods:
-   Self.setSequence(ppmvec,TR,thetaEX,B1Shape,pwCEST,B1amp,DutyCycle,nCESTp,InterSpoil)
-       -Sets the sequence parameters to be used by the class to create a
-        Z-spectrum.
-       Inputs:
-           ppmvec - vector of saturation offsets in ppm.
-           TR - The TR of the sequence (s).
-           thetaEX - The flip angle of the excitation pulse in degrees.
-           B1Shape - The shape of the saturation pulse 
-                     ('Philips-SincGauss' or 'Siemens-Gauss').
-           pwCEST - The pulse width of the saturation pulse (s).
-           B1amp - The amplitude of the saturation pulse (degrees/uT/T).
-           DutyCycle - The duty cycle of the pulse train (range: [0,1]).
-           nCESTp - The number of pulses in the saturation train (>=1).
-           InterSpoil - Flag to specify whether to include inter-pulse
-                        spoiling.  Requirements: DutyCycle < 1
-       
-   Self.CEST_NPool(obj,CWEPFlag)
-       -Creates a Z-Spectrum from the class members.
-       Inputs:
-           CWEPFlag - Flag to create a Continuous wave equivalent square 
-                      pulse in place of a saturation pulse train.
- Public Member Variables:
-         B0 - Scanner Field Strength
-         B1_Envelope - MT Pulse Shape
-         B1_Timing - Timing for B1_Envelope (s)
-         B1eCEST - Square B1 Equivalent Pulse of pulse train (uT)
-         pwCEST - CEST Pulse Duration (s)
-         B1amp - Maximum B1 Amplitude (uT)        
-         deltappm - Frequency Samples in ppm
-
- Other m-files required: none
- Private/Protected Subfunctions: CESTStruct(), absorptionLineShape(), 
-                                 setPulseEnvelope(), fullMT(), LineMT()
-
- 
- Author:  Alex Smith
- Date:    28-Nov-2018
- Version: 1.0
- Changelog:
-
- 20170526 - initial creation
- """
-
-# ------------- BEGIN CODE --------------
-
 from math import pi, sqrt, exp, sin, cos
 import numpy as np
 from scipy import interpolate as interp
 
 
 class CESTModel:
+    """ CESTModel - Class for Producing a CEST Spectrum
+    This class will produce a CEST z-Spectrum from a set of input values.
+    Supports N pools, with the 1st pool representing the water pool, and the
+    Nth pool representing the macromolecular pool with a Gaussian,
+    Lorentzian, Super-Lorentzian, or no lineshape.
+
+    Constructor Syntax:  Obj = CESTClass(M0,T1,T2,Rx,B0,ChemShift,lineshape)
+    
+    Arguments:
+    M0 - a 1xN vector listing the relative pool sizes, with the 1st pool
+            representing water
+    T1 - A 1xN vector listing the T1's (s) of each pool
+    T2 - A 1xN vector listing the T2's (s) of each pool
+    Rx - A 1x(N-1) vector listing the exchange rates (s) between each pool
+            and water.
+    B0 - The field strength in tesla.
+    ChemShift - A 1xN vector listing the relative 
+
+    Public Methods:
+    Self.setSequence(ppmvec,TR,thetaEX,B1Shape,pwCEST,B1amp,DutyCycle,nCESTp,InterSpoil)
+        -Sets the sequence parameters to be used by the class to create a
+            Z-spectrum.
+        Inputs:
+            ppmvec - vector of saturation offsets in ppm.
+            TR - The TR of the sequence (s).
+            thetaEX - The flip angle of the excitation pulse in degrees.
+            B1Shape - The shape of the saturation pulse 
+                        ('Philips-SincGauss' or 'Siemens-Gauss').
+            pwCEST - The pulse width of the saturation pulse (s).
+            B1amp - The amplitude of the saturation pulse (degrees/uT/T).
+            DutyCycle - The duty cycle of the pulse train (range: [0,1]).
+            nCESTp - The number of pulses in the saturation train (>=1).
+            InterSpoil - Flag to specify whether to include inter-pulse
+                            spoiling.  Requirements: DutyCycle < 1
+        
+    Self.CEST_NPool(obj,CWEPFlag)
+        -Creates a Z-Spectrum from the class members.
+        Inputs:
+            CWEPFlag - Flag to create a Continuous wave equivalent square 
+                        pulse in place of a saturation pulse train.
+    Public Member Variables:
+            B0 - Scanner Field Strength
+            B1_Envelope - MT Pulse Shape
+            B1_Timing - Timing for B1_Envelope (s)
+            B1eCEST - Square B1 Equivalent Pulse of pulse train (uT)
+            pwCEST - CEST Pulse Duration (s)
+            B1amp - Maximum B1 Amplitude (uT)        
+            deltappm - Frequency Samples in ppm
+
+    Other m-files required: none
+    Private/Protected Subfunctions: CESTStruct(), absorptionLineShape(), 
+                                    setPulseEnvelope(), fullMT(), LineMT()
+
+    
+    Author:  Alex Smith
+    Date:    28-Nov-2018
+    Version: 1.0
+    Changelog:
+
+    20170526 - initial creation
+    """
     # Constants
     gamma = 42.58 * 2 * pi  # rad/s-T
     gammaH = 42.58  # MHz/T
@@ -142,7 +139,7 @@ class CESTModel:
                         [ms]
             thetaEX     - Excitation pulse flip angle [deg]
             B1Shape     - The shape of the saturation pulse 
-                        ('CW', 'Philips-SincGauss', or 'Siemens-Gauss').
+                        ('CW', 'PhilipsSincGauss', or 'SiemensGauss').
             pwCEST      - The pulse width of the saturation pulse [s].
             B1amp       - The amplitude of the saturation pulse [degrees/uT/T].
             DutyCycle   - The duty cycle of the pulse train (range: [0,1]).
