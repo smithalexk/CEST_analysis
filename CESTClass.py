@@ -161,7 +161,7 @@ class CESTModel:
 
         # Set sequence timing parmaters
         tMTDC = (1 - self.DutyCycle) * pwCEST / self.DutyCycle
-
+        self.tMTDC = tMTDC
         self._setsequence_tr(TR, tMTDC)
 
         # Find the Pulse Envelope
@@ -208,6 +208,7 @@ class CESTModel:
 
         # Divide by Timing for equivalent Square Pulse
         self.B1eCEST = np.sqrt(w12int / ((pwCEST + tMTDC) * nCESTp))
+        self.B1eTiming = (pwCEST + tMTDC) * nCESTp
 
         self.deltappm = ppmvec
 
