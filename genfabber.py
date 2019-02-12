@@ -8,11 +8,14 @@ def create_fabber_ptrain_dataspec(
     offsetsfile,
     specfile=(Path.cwd() / "dataspec.txt"),
     ptrainfile=(Path.cwd() / "ptrain.txt"),
-    nCESTp=[100],
+    nCESTp=[50],
     pw=[20e-3],
     dutycycle=[0.5],
     nomB1=[180],
     cwep=True,
+    TR = 4,
+    thetaEX = 90,
+    qmtspec = False
 ):
 
     try:
@@ -27,6 +30,11 @@ def create_fabber_ptrain_dataspec(
             nCESTp
         ), "Length of offsetsfile needs to match that of other inputs"
 
+    if qmtspec:
+        pp = f"\t{TR:.6E}\t{thetaEX:.6E}"
+    else:
+        pp = ''
+
     for ii, bb in enumerate(nomB1):
         if isinstance(offsetsfile, list):
             ppmoffsets = np.loadtxt(str(offsetsfile[ii]))
@@ -34,12 +42,12 @@ def create_fabber_ptrain_dataspec(
             ppmoffsets = np.loadtxt(str(offsetsfile))
 
         b1 = CESTModel(
-            M0=[1, 0.2], T1=[1, 1], T2=[0.6, 0.6], B0=7, Rx=50, ChemShift=[0, 1]
+            M0=[1, 0.2], T1=[1, 1], T2=[0.6, 0.6], B0=3, Rx=50, ChemShift=[0, 1]
         )
         b1.setsequence(
             ppmvec=ppmoffsets,
-            TR=4,
-            thetaEX=5,
+            TR=TR,
+            thetaEX=thetaEX,
             B1amp=bb,
             DutyCycle=dutycycle[ii],
             nCESTp=nCESTp[ii],
@@ -47,20 +55,20 @@ def create_fabber_ptrain_dataspec(
             B1Shape="Gauss",
             InterSpoil=False,
         )
-
+    
         if ii == 0:
             with specfile.open(mode="w") as FID:
                 for offset in ppmoffsets:
                     if cwep:
                         FID.write(
-                            "{0:.6E}\t{1:.6E}\t{2:.6E}\n".format(
-                                offset, b1.B1eCEST[0] * 1e-6, 1.0
+                            "{0:.6E}\t{1:.6E}\t{2:.6E}{3}\n".format(
+                                offset, b1.B1eCEST[0] * 1e-6, 1.0,pp
                             )
                         )
                     else:
                         FID.write(
-                            "{0:.6E}\t{1:.6E}\t{2:.6E}\n".format(
-                                offset, b1.B1amp * 1e-6, nCESTp
+                            "{0:.6E}\t{1:.6E}\t{2:.6E}{3}\n".format(
+                                offset, b1.B1amp * 1e-6, nCESTp, pp
                             )
                         )
         else:
@@ -68,14 +76,14 @@ def create_fabber_ptrain_dataspec(
                 for offset in ppmoffsets:
                     if cwep:
                         FID.write(
-                            "{0:.6E}\t{1:.6E}\t{2:.6E}\n".format(
-                                offset, b1.B1eCEST[0] * 1e-6, 1.0
+                            "{0:.6E}\t{1:.6E}\t{2:.6E}{3}\n".format(
+                                offset, b1.B1eCEST[0] * 1e-6, 1.0, pp
                             )
                         )
                     else:
                         FID.write(
-                            "{0:.6E}\t{1:.6E}\t{2:.6E}\n".format(
-                                offset, b1.B1amp * 1e-6, nCESTp
+                            "{0:.6E}\t{1:.6E}\t{2:.6E}{3}\n".format(
+                                offset, b1.B1amp * 1e-6, nCESTp, pp
                             )
                         )
 
@@ -101,7 +109,7 @@ def create_fabbercest_prompt(
     ptrain_stem,
     poolmat_stem,
     OutFolder=Path.cwd(),
-    MaskName="Ref_Mask",
+    maskname="Ref_Mask",
     LineShape=None,
     TR=None,
     thetaEX=None,
@@ -129,7 +137,7 @@ def create_fabbercest_prompt(
 
         # Build rest of script
         FID.write(f"--data={data_stem}.nii.gz \\\n")
-        FID.write(f"--mask={MaskName}.nii.gz \\\n")
+        FID.write(f"--mask={maskname}.nii.gz \\\n")
         FID.write(
             f"--method=vb --noise=white --model=cest --data-order=singlefile \\\n"
         )
@@ -175,7 +183,6 @@ def create_fabbercest_prompt(
 
     return None
 
-
 def create_fabbert1_prompt(
     t1name, maskname, TR, OutFolder=Path.cwd(), fas=[25, 20, 15, 5, 5], B1Name=None
 ):
@@ -208,6 +215,78 @@ def create_fabbert1_prompt(
             FID.write(f"--PSP_byname1=B1corr --PSP_byname1_type=I ")
             FID.write(f"--PSP_byname1_image={B1Name}.nii.gz")
 
+    filename.chmod(0o755)
+
+    return None
+
+
+def create_fabberqmt_prompt(
+    data_stem,
+    dataspec_stem,
+    ptrain_stem,
+    poolmat_stem,
+    OutFolder=Path.cwd(),
+    maskname="Ref_Mask",
+    B1Name=None,
+    T1Name=None,
+    T10 = 1,
+    T2f0 = 80e-3,
+    T2m0 = 10e-6,
+    lineshape="superlorentzian",
+    jalapeno=False,
+):
+
+    # Creates Path object to directory where file will be created
+    filename = OutFolder / (data_stem + ".sh")
+
+    # Opens file and writes script
+    with filename.open(mode="w") as FID:
+        FID.write("#!/bin/sh\n\n")
+
+        # If it will be on Jalapeno, use jalapeno flag to set proper executable directory
+        if jalapeno:
+            FID.write(
+                "/home/fs0/asmith/scratch/Fabber/fabber_models_qMT/fabber_qMT \\\n"
+            )
+        else:
+            FID.write(
+                "/Users/asmith/Documents/Research/Oxford/Fabber/fabber_models_qmt/build/fabber_qmt \\\n"
+            )
+
+        # Build rest of script
+        FID.write(f"--data={data_stem}.nii.gz \\\n")
+        FID.write(f"--mask={maskname}.nii.gz \\\n")
+        FID.write(
+            f"--method=vb --noise=white --model=qMT --data-order=singlefile \\\n"
+        )
+        FID.write(f"--max-iterations=20 --output={data_stem} \\\n")
+        FID.write(f"--spec={dataspec_stem}.txt --t12prior")
+        FID.write(f" --pools={poolmat_stem}.txt --ptrain={ptrain_stem}.txt \\\n")
+        FID.write(f"--save-model-fit --satspoil --lineshape={lineshape} \\\n")
+
+        FID.write(f"--T1={T10:.3E} --T2f={T2f0:.3E} --T2m={T2m0:.3E} ")
+
+        # psp counter is used to set the proper number of PSP_byname settings, will count from 1
+        pspcounter = 1
+        # Inputs B1 dataset
+        if B1Name is not None:
+            FID.write(
+                f"\\\n--PSP_byname{pspcounter}=B1corr --PSP_byname{pspcounter}_type=I "
+            )
+            FID.write(f"--PSP_byname{pspcounter}_image={B1Name}.nii.gz ")
+            FID.write(f"--PSP_byname{pspcounter}_prec=1e10 ")
+            pspcounter += 1
+
+        # Inputs T1 dataset
+        if T1Name is not None:
+            FID.write(
+                f"\\\n--PSP_byname{pspcounter}=T1 --PSP_byname{pspcounter}_type=I "
+            )
+            FID.write(f"--PSP_byname{pspcounter}_image={T1Name}.nii.gz ")
+            FID.write(f"--PSP_byname{pspcounter}_prec=1e10 ")
+            pspcounter += 1
+
+    # Set executable
     filename.chmod(0o755)
 
     return None
