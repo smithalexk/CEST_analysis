@@ -184,13 +184,14 @@ def create_fabbercest_prompt(
     return None
 
 def create_fabbert1_prompt(
-    t1name, maskname, TR, OutFolder=Path.cwd(), fas=[25, 20, 15, 5, 5], B1Name=None
+    t1name, maskname, TR=None, OutFolder=Path.cwd(), fas=[25, 20, 15, 5, 5], B1Name=None, IR=False
 ):
-
-    with (OutFolder / "VFA_FAs.txt").open(mode="w") as FID:
-        for fa in fas:
-            FID.write(f"{fa}\n")
-
+    
+    if not IR and TR is None:
+        raise NoTRError(
+                "No TR specified for VFA T1 Data!\nProvide a TR to proceed!"
+            )
+    
     filename = OutFolder / "VFA_FABBER.sh"
 
     with filename.open(mode="w") as FID:
@@ -204,12 +205,22 @@ def create_fabbert1_prompt(
 
         FID.write(f"--mask={maskname}.nii.gz \\\n")
 
-        FID.write("--fas-file=VFA_FAs.txt \\\n")
-
-        FID.write("--method=vb --model=vfa --spatial --noise=white \\\n")
+        FID.write("--method=vb ")
+        if IR:
+            with (OutFolder / "IR_TIs.txt").open(mode="w") as FID2:
+                for fa in fas:
+                    FID2.write(f"{fa}\n")
+            FID.write("--model=ir --tis-file=IR_TIs.txt \\\n")
+        else:
+            with (OutFolder / "VFA_FAs.txt").open(mode="w") as FID2:
+                for fa in fas:
+                    FID2.write(f"{fa}\n")
+            FID.write("--model=vfa --fas-file=VFA_FAs.txt \\\n")
+        FID.write("--spatial --noise=white \\\n")
         FID.write("--data-order=singlefile --save-model-fit \\\n")
-
-        FID.write(f"--tr={TR:.6E} \\\n")
+        
+        if not IR:
+            FID.write(f"--tr={TR:.6E} \\\n")
 
         if B1Name is not None:
             FID.write(f"--PSP_byname1=B1corr --PSP_byname1_type=I ")
@@ -290,3 +301,8 @@ def create_fabberqmt_prompt(
     filename.chmod(0o755)
 
     return None
+
+
+class NoTRError(Exception):
+    pass
+    
