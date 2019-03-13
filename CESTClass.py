@@ -76,16 +76,16 @@ class CESTModel:
 
     def __init__(self, **kwargs):
         # Convert all inputs to lowercase
-        kwargs = {k.lower(): v for k, v in kwargs.items()}
+        kwargs = {k.lower(): np.array(v) for k, v in kwargs.items()}
 
         # Add attributes to object
         # If no attribute, provide default
-        self.M0 = np.array(kwargs.get("m0", np.array([1])))
-        self.T1 = np.array(kwargs.get("t1", np.array([1])))
-        self.T2 = np.array(kwargs.get("t2", np.array([0.1])))
-        self.Rx = np.array(kwargs.get("rx", np.zeros(1)))
+        self.M0 = kwargs.get("m0", np.array([1]))
+        self.T1 = kwargs.get("t1", np.array([1]))
+        self.T2 = kwargs.get("t2", np.array([0.1]))
+        self.Rx = np.append(0,kwargs.get("rx", []))
         self.B0 = kwargs.get("b0", 3)
-        self.ChemShift = np.array(kwargs.get("chemshift", np.zeros(1)))
+        self.ChemShift = kwargs.get("chemshift", np.zeros(1))
 
         # Set to avoid errors in later function
         self.mtLineshape = None
