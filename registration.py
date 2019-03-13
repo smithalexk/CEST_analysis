@@ -452,7 +452,8 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
         btr = fsl.BET()
         btr.inputs.in_file = str(regdir / "CEST_bc_restore.nii.gz")
         btr.inputs.out_file = str(regdir / "CEST_brain.nii.gz")
-        btr.inputs.padding = True
+        if cest_img.ndim <= 2 or cest_img.shape[2] < 5:
+            btr.inputs.padding = True
         btr.run()
 
     # Flirt BETted image into CEST Space
@@ -856,7 +857,8 @@ def _cestreg(
         betcest0.inputs.in_file = str(regdir / f"{cestoutname}_bc_restore.nii.gz")
         betcest0.inputs.out_file = str(regdir / f"{cestoutname}_prereg_brain.nii.gz")
         betcest0.inputs.mask = True
-        betcest0.inputs.padding = True
+        if cestvol.ndim <= 2 or cestvol.shape[3] < 5:
+            betcest0.inputs.padding = True
         betcest0.run()
 
     # BET rest of data
@@ -989,6 +991,8 @@ def _t1reg(
     t1fast.inputs.no_pve = True
     t1fast.run(ignore_exception=True)
 
+    t1vol = nib.load(str(t1dir[0]))
+
     # BET T1 Ref image
     if phantom:
         fmaths = fsl.ImageMaths()
@@ -1001,16 +1005,27 @@ def _t1reg(
         fmaths.inputs.out_file = str(regdir / f"{t1outname}_brain_mask.nii.gz")
         fmaths.inputs.op_string = "-bin"
         fmaths.run()
-
-        # Flirt first T1 Image to Original Reference volume
-        flt = fsl.FLIRT()
-        flt.inputs.in_file = str(regdir / f"{t1outname}_vol1.nii.gz")
-        flt.inputs.reference = str(inrefdir)
-        flt.inputs.out_file = str(regdir / "T1_to_ref.nii.gz")
-        flt.inputs.rigid2D = True
-        flt.inputs.output_type = "NIFTI_GZ"
-        flt.inputs.out_matrix_file = str(regdir / "T1resred.txt")
-        flt.run()
+        
+        if t1vol.ndim < 3 or t1vol.shape[2] == 1:
+            # Flirt first T1 Image to Original Reference volume
+            flt = fsl.FLIRT()
+            flt.inputs.in_file = str(regdir / f"{t1outname}_vol1.nii.gz")
+            flt.inputs.reference = str(regdir / "Ref_sROI.nii.gz")
+            flt.inputs.out_file = str(regdir / "T1_to_ref.nii.gz")
+            flt.inputs.rigid2D = True
+            flt.inputs.output_type = "NIFTI_GZ"
+            flt.inputs.out_matrix_file = str(regdir / "T1resred.txt")
+            flt.run()
+        else:
+            # Flirt first T1 Image to Original Reference volume
+            flt = fsl.FLIRT()
+            flt.inputs.in_file = str(regdir / f"{t1outname}_vol1.nii.gz")
+            flt.inputs.reference = str(inrefdir)
+            flt.inputs.out_file = str(regdir / "T1_to_ref.nii.gz")
+            flt.inputs.rigid2D = True
+            flt.inputs.output_type = "NIFTI_GZ"
+            flt.inputs.out_matrix_file = str(regdir / "T1resred.txt")
+            flt.run()
     else:
         bett1 = fsl.BET()
         bett1.inputs.in_file = str(regdir / f"{t1outname}_bc_restore.nii.gz")
@@ -1039,40 +1054,53 @@ def _t1reg(
     
     if len(_slicenumber2d) > 0:
         # Flirt T1 Map Data to Original Reference volume
-        flt = fsl.FLIRT()
-        flt.inputs.in_file = str(regdir / f"{t1outname}_merged_brain.nii.gz")
-        flt.inputs.reference = str(inrefdir)
-        flt.inputs.out_file = str(regdir / "T1Data_to_ref.nii.gz")
-        flt.inputs.output_type = "NIFTI_GZ"
-        flt.inputs.in_matrix_file = str(regdir / "T1resred.txt")
-        flt.inputs.apply_xfm = True
-        flt.inputs.out_matrix_file = str(regdir / "T1resred.txt")
-        flt.run()
-
-        if _slicenumber2d[1] > 1:
-            # Run for T1 Data
-            fsl.ExtractROI(
-                in_file=str(regdir / "T1Data_to_ref.nii.gz"),
-                roi_file=str(regdir / "T1Data_sROI.nii.gz"),
-                x_min=0,
-                x_size=-1,
-                y_min=0,
-                y_size=-1,
-                z_min=_slicenumber2d[0] - 1,
-                z_size=_slicenumber2d[1],
-            ).run()
+        if t1vol.ndim < 3 or t1vol.shape[2] == 1:
+            flt = fsl.FLIRT()
+            flt.inputs.in_file = str(regdir / f"{t1outname}_merged_brain.nii.gz")
+            flt.inputs.reference = str(regdir / "Ref_sROI.nii.gz")
+            flt.inputs.out_file = str(regdir / "T1Data_sROI.nii.gz")
+            if phantom:
+                flt.inputs.rigid2D = True
+            flt.inputs.output_type = "NIFTI_GZ"
+            flt.inputs.in_matrix_file = str(regdir / "T1resred.txt")
+            flt.inputs.apply_xfm = True
+            flt.inputs.out_matrix_file = str(regdir / "T1resred.txt")
+            flt.run()
         else:
-            # Run for T1 Data
-            fsl.ExtractROI(
-                in_file=str(regdir / "T1Data_to_ref.nii.gz"),
-                roi_file=str(regdir / "T1Data_sROI.nii.gz"),
-                x_min=0,
-                x_size=-1,
-                y_min=0,
-                y_size=-1,
-                z_min=_slicenumber2d[0],
-                z_size=_slicenumber2d[1],
-            ).run()
+            flt = fsl.FLIRT()
+            flt.inputs.in_file = str(regdir / f"{t1outname}_merged_brain.nii.gz")
+            flt.inputs.reference = str(inrefdir)
+            flt.inputs.out_file = str(regdir / "T1Data_to_ref.nii.gz")
+            flt.inputs.output_type = "NIFTI_GZ"
+            flt.inputs.in_matrix_file = str(regdir / "T1resred.txt")
+            flt.inputs.apply_xfm = True
+            flt.inputs.out_matrix_file = str(regdir / "T1resred.txt")
+            flt.run()
+
+            if _slicenumber2d[1] > 1:
+                # Run for T1 Data
+                fsl.ExtractROI(
+                    in_file=str(regdir / "T1Data_to_ref.nii.gz"),
+                    roi_file=str(regdir / "T1Data_sROI.nii.gz"),
+                    x_min=0,
+                    x_size=-1,
+                    y_min=0,
+                    y_size=-1,
+                    z_min=_slicenumber2d[0] - 1,
+                    z_size=_slicenumber2d[1],
+                ).run()
+            else:
+                # Run for T1 Data
+                fsl.ExtractROI(
+                    in_file=str(regdir / "T1Data_to_ref.nii.gz"),
+                    roi_file=str(regdir / "T1Data_sROI.nii.gz"),
+                    x_min=0,
+                    x_size=-1,
+                    y_min=0,
+                    y_size=-1,
+                    z_min=_slicenumber2d[0],
+                    z_size=_slicenumber2d[1],
+                ).run()
 
         # Warp 2D T1 Data to CEST Space
         flt.inputs.in_file = str(regdir / "T1Data_sROI.nii.gz")
