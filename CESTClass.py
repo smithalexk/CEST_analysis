@@ -213,7 +213,7 @@ class CESTModel:
         self.deltappm = ppmvec
 
     def cest_npool(self, CWEPFlag=True):
-        if self.mtLineshape is None:
+        if self.mtLineshape == None:
             return self._fullMT(CWEPFlag)
         else:
             return self._lineMT(CWEPFlag)
@@ -633,7 +633,7 @@ class CESTModel:
         if lineshape.lower() == "lorentzian":
             return (T2 / pi) * (1 / (1 + (2 * pi * deltaMT * T2) ** 2))
         elif lineshape.lower() == "gaussian":
-            return (T2 / sqrt(2 * pi)) * exp(-(2 * pi * deltaMT * T2) ** 2 / 2)
+            return (T2 / np.sqrt(2 * pi)) * np.exp(-(2 * pi * deltaMT * T2) ** 2 / 2)
         elif lineshape.lower() == "superlorentzian":
 
             #  Find abs(g) > 1000 Hz
@@ -677,5 +677,5 @@ class CESTModel:
     def assertpoolspecifications(self):
         assert self.M0.size == self.T1.size, "Pool Specifications not equal!"
         assert self.M0.size == self.T2.size, "Pool Specifications not equal!"
-        assert self.M0.size == self.Rx.size + 1, "Pool Specifications not equal!"
+        assert self.M0.size == self.Rx.size, "Pool Specifications not equal!"
         assert self.M0.size == self.ChemShift.size, "Pool Specifications not equal!"
