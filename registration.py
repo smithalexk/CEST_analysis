@@ -927,6 +927,14 @@ def _cestreg(
         str(outfolder / "Ref_Mask.nii.gz")
     )
 
+    # Change mask to only a single volume (instead of 4D volume from CEST data)
+    maskroi = fsl.ExtractROI()
+    maskroi.inputs.in_file = str(outfolder / "Ref_Mask.nii.gz")
+    maskroi.inputs.roi_file = str(outfolder / "Ref_Mask.nii.gz")
+    maskroi.inputs.t_min = 0
+    maskroi.inputs.t_size = 1
+    maskroi.run()
+
     return None
 
 
