@@ -396,8 +396,11 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
                 z_size=Nslices,
             ).run()
 
-            _slicenumber2d.append(int(round(ref_coord[2])))
-            _slicenumber2d.append(Nslices)
+        _slicenumber2d.append(int(round(ref_coord[2])))
+        _slicenumber2d.append(Nslices)
+
+        with (regdir / "Ref_SliceLocation.txt").open(mode="w") as FID:
+            [FID.write(f"{slice}\n") for slice in _slicenumber2d]
 
     else:
         shutil.copyfile(str(refdir[0]), str(regdir / "Ref_sROI.nii.gz"))
@@ -536,11 +539,20 @@ def _b1resize(
     else:
         inrefdir = sorted(datapath.glob(f"*{inrefname}*.nii.gz"))[0]
 
+    if len(b1dir) > 1 and b1FAmap is None:
+        fslmerge = fsl.Merge()
+        fslmerge.inputs.in_files = [str(i) for v, i in enumerate(b1dir)]
+        fslmerge.inputs.dimension = "t"
+        fslmerge.inputs.merged_file = str(regdir / f"{b1name}_merged.nii.gz")
+        fslmerge.run()
+
+        b1dir = regdir / f"{b1name}_merged.nii.gz"
+    
     try:
         b1vol = nib.load(str(b1dir[1]))
-    except IndexError:
-        b1vol = nib.load(str(b1dir[0]))
-
+    except TypeError:
+        b1vol = nib.load(str(b1dir))
+        
     if b1FAmap is None and b1vol.ndim < 4:
         if len(b1dir) > 1:
             b1FAmap = Path(b1dir[-1].stem).stem
@@ -564,7 +576,7 @@ def _b1resize(
     elif b1FAmap is None and b1vol.shape[3] == 2:
         # Split Data
         fsplt = fsl.Split()
-        fsplt.inputs.in_file = str(b1dir[0])
+        fsplt.inputs.in_file = str(b1dir)
         fsplt.inputs.out_base_name = str(regdir / "DREAM_s")
         fsplt.inputs.dimension = "t"
         fsplt.run()
