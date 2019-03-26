@@ -558,16 +558,15 @@ def _b1resize(
     if b1FAmap is None and b1vol.shape[3] > 2:
         # Split Data
         fsplt = fsl.Split()
-        fsplt.inputs.in_file = str(b1dir[0])
+        fsplt.inputs.in_file = str(b1dir)
         fsplt.inputs.out_base_name = str(regdir / "DREAM_s")
         fsplt.inputs.dimension = "t"
         fsplt.run()
 
         # set variables so anatomical and FA map are defined
         b1dirs = sorted(regdir.glob("*DREAM_s*.nii.gz"))
-        b1dirs = list(regdir.glob("*DREAM_s*.nii.gz"))
-        b1dir = str(b1dirs[0])
-        b1FAmap = str(b1dirs[-1])
+        b1dir = str(b1dirs[1])
+        b1FAmapdir = str(b1dirs[-1])
 
     elif b1FAmap is None and b1vol.shape[3] == 2:
         # Split Data
@@ -617,7 +616,7 @@ def _b1resize(
         # Flirt B1 Image Data to Original Reference volume
         flt = fsl.FLIRT()
         flt.inputs.in_file = str(regdir / "B1_bc_restore.nii.gz")
-        flt.inputs.reference = str(inrefdir)
+        flt.inputs.reference = str(regdir / "Ref_bc_restore.nii.gz")
         flt.inputs.out_file = str(regdir / "B1_to_ref.nii.gz")
         flt.inputs.output_type = "NIFTI_GZ"
         flt.inputs.rigid2D = True
@@ -630,7 +629,7 @@ def _b1resize(
         # Flirt B1 Image Data to Original Reference volume
         flt = fsl.FLIRT()
         flt.inputs.in_file = str(regdir / "B1_bc_restore.nii.gz")
-        flt.inputs.reference = str(inrefdir)
+        flt.inputs.reference = str(regdir / "Ref_bc_restore.nii.gz")
         flt.inputs.out_file = str(regdir / "B1_to_ref.nii.gz")
         flt.inputs.output_type = "NIFTI_GZ"
         flt.inputs.out_matrix_file = str(regdir / "B1resred.txt")
@@ -640,7 +639,7 @@ def _b1resize(
         # Flirt B1 Map Data to Original Reference volume
         flt = fsl.FLIRT()
         flt.inputs.in_file = str(b1FAmapdir)
-        flt.inputs.reference = str(inrefdir)
+        flt.inputs.reference = str(regdir / "Ref_bc_restore.nii.gz")
         flt.inputs.out_file = str(regdir / "B1map_to_ref.nii.gz")
         flt.inputs.output_type = "NIFTI_GZ"
         flt.inputs.in_matrix_file = str(regdir / "B1resred.txt")
