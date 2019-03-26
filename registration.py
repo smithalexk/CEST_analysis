@@ -104,7 +104,7 @@ def register_cest(
         RefPath = CESTName[0]
 
         # Splitting 2nd CEST image from rest for use as reference image
-        Refdir = list(PathToData.glob("*{0}*nii.gz".format(RefPath)))
+        Refdir = sorted(PathToData.glob("*{0}*nii.gz".format(RefPath)))
         fsl.ExtractROI(
             in_file=str(Refdir[0]),
             roi_file=str(regdir / "CEST_dyn2.nii.gz"),
@@ -144,9 +144,9 @@ def register_cest(
     for idx, i in enumerate(CESTName):
 
         if isinstance(OffsetsName, (list, np.ndarray)):
-            offsetpath = list(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
+            offsetpath = sorted(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
         else:
-            offsetpath = list(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
+            offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
         _cestreg(
             datapath=PathToData,
             cestprefix=i,
@@ -251,7 +251,7 @@ def register_mt(
         RefPath = mtName[0]
 
         # Splitting 1stt MT image from rest for use as reference image
-        Refdir = list(PathToData.glob("*{0}*nii.gz".format(RefPath)))
+        Refdir = sorted(PathToData.glob("*{0}*nii.gz".format(RefPath)))
         fsl.ExtractROI(
             in_file=str(Refdir[0]),
             roi_file=str(regdir / "qMT_dyn2.nii.gz"),
@@ -290,9 +290,9 @@ def register_mt(
 
     for idx, i in enumerate(mtName):
         if isinstance(OffsetsName, (list, np.ndarray)):
-            offsetpath = list(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
+            offsetpath = sorted(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
         else:
-            offsetpath = list(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
+            offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
 
         _mtreg(
             datapath=PathToData,
@@ -534,11 +534,6 @@ def _b1resize(
     """
     b1dir = sorted(datapath.glob("*{0}*.nii.gz".format(b1name)))
 
-    if inrefname is None:
-        inrefdir = datapath / outrefname
-    else:
-        inrefdir = sorted(datapath.glob(f"*{inrefname}*.nii.gz"))[0]
-
     if len(b1dir) > 1 and b1FAmap is None:
         fslmerge = fsl.Merge()
         fslmerge.inputs.in_files = [str(i) for v, i in enumerate(b1dir)]
@@ -569,6 +564,7 @@ def _b1resize(
         fsplt.run()
 
         # set variables so anatomical and FA map are defined
+        b1dirs = sorted(regdir.glob("*DREAM_s*.nii.gz"))
         b1dirs = list(regdir.glob("*DREAM_s*.nii.gz"))
         b1dir = str(b1dirs[0])
         b1FAmap = str(b1dirs[-1])
@@ -582,7 +578,7 @@ def _b1resize(
         fsplt.run()
 
         # Split b1vol into component anatomicals for registration
-        b1dirs = list(regdir.glob("*DREAM_s*.nii.gz"))
+        b1dirs = sorted(regdir.glob("*DREAM_s*.nii.gz"))
         b1dir = str(b1dirs[1])
         # Define b1FAmap for use in downstream registration
         b1FAmapdir = regdir / "B1map.nii.gz"
