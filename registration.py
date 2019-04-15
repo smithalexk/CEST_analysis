@@ -47,6 +47,7 @@ def register_cest(
     b1FAname=None,
     WASSRname=None,
     WASSRoffsets=None,
+    RegDir="RegDir",
     phantom=False
 ):
     """ Register CEST Data - Registers CEST Data to a Reference Dataset
@@ -87,7 +88,7 @@ def register_cest(
     # Switch to Path Object for all Folders
 
     OutFolder = OutFolder
-    regdir = PathToData / "RegDir"
+    regdir = PathToData / RegDir
 
     if not regdir.is_dir():
         regdir.mkdir(parents=True)
@@ -194,6 +195,7 @@ def register_mt(
     T1Name,
     RefName=None,
     b1FAname=None,
+    RegDir="RegDir",
     phantom=False
 ):
     """ Register MT Data - Registers qMT Data to a Reference Dataset
@@ -234,7 +236,7 @@ def register_mt(
     # Switch to Path Object for all Folders
 
     OutFolder = OutFolder
-    regdir = PathToData / "RegDir"
+    regdir = PathToData / RegDir
 
     if not regdir.is_dir():
         regdir.mkdir(parents=True)
@@ -268,15 +270,24 @@ def register_mt(
             str(regdir / "{0}.nii.gz".format(RefName)),
             str(Path(PathToData) / "qMT_dyn2.nii.gz"),
         )
-
-    _reg_ref(
-        datapath=PathToData,
-        refname=RefName,
-        regdir=regdir,
-        cest_name=mtName[0],
-        outfolder=OutFolder,
-        phantom=phantom
-    )
+    if isinstance(mtName, (list, np.ndarray)):
+        _reg_ref(
+            datapath=PathToData,
+            refname=RefName,
+            regdir=regdir,
+            cest_name=mtName[0],
+            outfolder=OutFolder,
+            phantom=phantom
+        )
+    else:
+        _reg_ref(
+            datapath=PathToData,
+            refname=RefName,
+            regdir=regdir,
+            cest_name=mtName,
+            outfolder=OutFolder,
+            phantom=phantom
+        )
 
     _b1resize(
         datapath=PathToData,
@@ -288,15 +299,26 @@ def register_mt(
         phantom=phantom
     )
 
-    for idx, i in enumerate(mtName):
-        if isinstance(OffsetsName, (list, np.ndarray)):
-            offsetpath = sorted(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
-        else:
-            offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
-
+    if isinstance(mtName, (list, np.ndarray)):
+        for idx, i in enumerate(mtName):
+            if isinstance(OffsetsName, (list, np.ndarray)):
+                offsetpath = sorted(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
+            else:
+                offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
+            
+            _mtreg(
+                datapath=PathToData,
+                mtprefix=i,
+                offsetspath=offsetpath,
+                regdir=regdir,
+                outfolder=OutFolder,
+                phantom=phantom
+            )
+    else:
+        offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
         _mtreg(
             datapath=PathToData,
-            mtprefix=i,
+            mtprefix=mtName,
             offsetspath=offsetpath,
             regdir=regdir,
             outfolder=OutFolder,
@@ -361,6 +383,16 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
     except IndexError:
         dim3 = 1
 
+
+    # Perform Bias Field Correction on Reference image
+    refbc = fsl.FAST()
+    refbc.inputs.in_files = str(refdir[0])
+    refbc.inputs.out_basename = str(regdir / "Ref_bc")
+    refbc.inputs.output_biascorrected = True
+    refbc.inputs.no_pve = True
+    refbc.inputs.output_type = "NIFTI_GZ"
+    refbc.run(ignore_exception=True)
+
     if dim3 == 1:
         sformref = ref_img.get_sform()
         sformcest = cest_img.get_sform()
@@ -375,7 +407,7 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
         # Create ROI of the slices around the CEST slice
         if Nslices > 1:
             fsl.ExtractROI(
-                in_file=str(refdir[0]),
+                in_file=str(regdir / "Ref_bc_restore.nii.gz"),
                 roi_file=str(regdir / "Ref_sROI.nii.gz"),
                 x_min=0,
                 x_size=-1,
@@ -386,7 +418,7 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
             ).run()
         else:
             fsl.ExtractROI(
-                in_file=str(refdir[0]),
+                in_file=str(regdir / "Ref_bc_restore.nii.gz"),
                 roi_file=str(regdir / "Ref_sROI.nii.gz"),
                 x_min=0,
                 x_size=-1,
@@ -403,17 +435,9 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
             [FID.write(f"{slice}\n") for slice in _slicenumber2d]
 
     else:
-        shutil.copyfile(str(refdir[0]), str(regdir / "Ref_sROI.nii.gz"))
+        shutil.copyfile(str(regdir / "Ref_bc_restore.nii.gz"), str(regdir / "Ref_sROI.nii.gz"))
 
-    # Perform Bias Field Correction on CEST and Reference images
-    refbc = fsl.FAST()
-    refbc.inputs.in_files = str(regdir / "Ref_sROI.nii.gz")
-    refbc.inputs.out_basename = str(regdir / "Ref_bc")
-    refbc.inputs.output_biascorrected = True
-    refbc.inputs.no_pve = True
-    refbc.inputs.output_type = "NIFTI_GZ"
-    refbc.run(ignore_exception=True)
-
+    # Perform Bias Field Correction on CEST image
     cestbc = fsl.FAST()
     cestbc.inputs.in_files = str(cestdir[0])
     cestbc.inputs.out_basename = str(regdir / "CEST_bc")
@@ -426,7 +450,7 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
     # Skull strip Reference and CEST Images
     if phantom:
         fmaths = fsl.ImageMaths()
-        fmaths.inputs.in_file = str(regdir / "Ref_bc_restore.nii.gz")
+        fmaths.inputs.in_file = str(regdir / "Ref_sROI.nii.gz")
         fmaths.inputs.out_file = str(regdir / "Ref_brain.nii.gz")
         fmaths.inputs.op_string = "-thrp 10"
         fmaths.run()
@@ -443,7 +467,7 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
         fmaths.run()
     else:
         btr = fsl.BET()
-        btr.inputs.in_file = str(regdir / "Ref_bc_restore.nii.gz")
+        btr.inputs.in_file = str(regdir / "Ref_sROI.nii.gz")
         btr.inputs.out_file = str(regdir / "Ref_brain.nii.gz")
         btr.inputs.frac = 0.4
         if dim3 == 1:
@@ -455,7 +479,11 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
         btr = fsl.BET()
         btr.inputs.in_file = str(regdir / "CEST_bc_restore.nii.gz")
         btr.inputs.out_file = str(regdir / "CEST_brain.nii.gz")
-        if cest_img.ndim <= 2 or cest_img.shape[2] < 5:
+        if (
+            cest_img.ndim <= 2 
+            or cest_img.shape[2] < 5 
+            or cest_img.header.get_zooms()[2] * cest_img.shape[2] < 75
+        ):
             btr.inputs.padding = True
         btr.run()
 
@@ -717,7 +745,6 @@ def _cestreg(
     offsetspath,
     regdir,
     outfolder=Path.cwd(),
-    outrefname="Ref_CESTres.nii.gz",
     CESTRefImage=0,
     phantom=False
 ):
@@ -729,8 +756,6 @@ def _cestreg(
     offsets = np.loadtxt(str(offsetspath))
 
     n_ones = np.where(abs(offsets) < 1)[0]
-
-    refresize = outfolder / outrefname
 
     cestoutname = cestprefix
 
@@ -876,46 +901,10 @@ def _cestreg(
     fmaths.inputs.out_file = str(regdir / f"{cestoutname}_mergedTot_bc_brain.nii.gz")
     fmaths.run()
 
-    # Register CEST image to High Resolution Reference
-    if cestvol.ndim < 3 or cestvol.shape[2] == 1:
-        flirt = fsl.FLIRT()
-        flirt.inputs.in_file = str(regdir / f"{cestoutname}_prereg_brain.nii.gz")
-        flirt.inputs.reference = str(refresize)
-        flirt.inputs.out_file = str(regdir / f"{cestoutname}_flirt.nii.gz")
-        flirt.inputs.out_matrix_file = str(regdir / "CEST_FlirtMat.txt")
-        flirt.inputs.rigid2D = True
-        flirt.run()
-
-        flirt = fsl.FLIRT()
-        flirt.inputs.in_file = str(regdir / f"{cestoutname}_mergedTot_bc_brain.nii.gz")
-        flirt.inputs.reference = str(refresize)
-        flirt.inputs.out_file = str(regdir / f"{cestoutname}_reg.nii.gz")
-        flirt.inputs.apply_xfm = True
-        flirt.inputs.in_matrix_file = str(regdir / "CEST_FlirtMat.txt")
-        flirt.inputs.out_matrix_file = str(regdir / "CEST_FlirtMat.txt")
-        flirt.inputs.rigid2D = True
-        flirt.run()
-
-    else:
-        flirt = fsl.FLIRT()
-        flirt.inputs.in_file = str(regdir / f"{cestoutname}_prereg_brain.nii.gz")
-        flirt.inputs.reference = str(refresize)
-        flirt.inputs.out_file = str(Path(regdir) / f"{cestoutname}_flirt.nii.gz")
-        flirt.inputs.out_matrix_file = str(regdir / "CEST_FlirtMat.txt")
-        flirt.run()
-
-        flirt = fsl.FLIRT()
-        flirt.inputs.in_file = str(regdir / f"{cestoutname}_mergedTot_bc_brain.nii.gz")
-        flirt.inputs.reference = str(refresize)
-        flirt.inputs.out_file = str(regdir / f"{cestoutname}_reg.nii.gz")
-        flirt.inputs.apply_xfm = True
-        flirt.inputs.in_matrix_file = str(regdir / "CEST_FlirtMat.txt")
-        flirt.inputs.out_matrix_file = str(regdir / "CEST_FlirtMat.txt")
-        flirt.run()
 
     # Move CEST data to analysis folder
     shutil.copyfile(
-        str(regdir / f"{cestoutname}_reg.nii.gz"),
+        str(regdir / f"{cestoutname}_mergedTot_bc_brain.nii.gz"),
         str(outfolder / f"{cestoutname}_reg.nii.gz"),
     )
     
@@ -1157,7 +1146,6 @@ def _mtreg(
     offsetspath,
     regdir,
     outfolder=Path.cwd(),
-    outrefname="Ref_CESTres.nii.gz",
     MTRefImage = -1,
     phantom=False
 ):
@@ -1170,8 +1158,6 @@ def _mtreg(
 
     if MTRefImage == -1:
         MTRefImage = len(offsets) -1
-
-    refresize = outfolder / outrefname
 
     mtoutname = mtprefix
 
@@ -1229,7 +1215,8 @@ def _mtreg(
 
     else:
         betcest0 = fsl.BET()
-        betcest0.inputs.in_file = str(regdir / f"{mtoutname}_bc_restore.nii.gz")
+        betcest0.inputs.in_file = str(regdir / f"{mtoutname}_prereg.nii.gz")
+        # betcest0.inputs.in_file = str(regdir / f"{mtoutname}_bc_restore.nii.gz")
         betcest0.inputs.out_file = str(regdir / f"{mtoutname}_prereg_brain.nii.gz")
         betcest0.inputs.mask = True
         betcest0.inputs.padding = True
@@ -1243,45 +1230,8 @@ def _mtreg(
     fmaths.inputs.out_file = str(regdir / f"{mtoutname}_merged_bc_brain.nii.gz")
     fmaths.run()
 
-    # Register MT image to High Resolution Reference
-    if mtvol.ndim < 3 or mtvol.shape[2] == 1:
-        flirt = fsl.FLIRT()
-        flirt.inputs.in_file = str(regdir / f"{mtoutname}_prereg_brain.nii.gz")
-        flirt.inputs.reference = str(refresize)
-        flirt.inputs.out_file = str(regdir / f"{mtoutname}_flirt.nii.gz")
-        flirt.inputs.out_matrix_file = str(regdir / "MT_FlirtMat.txt")
-        flirt.inputs.rigid2D = True
-        flirt.run()
-
-        flirt = fsl.FLIRT()
-        flirt.inputs.in_file = str(regdir / f"{mtoutname}_merged_bc_brain.nii.gz")
-        flirt.inputs.reference = str(refresize)
-        flirt.inputs.out_file = str(regdir / f"{mtoutname}_reg.nii.gz")
-        flirt.inputs.apply_xfm = True
-        flirt.inputs.in_matrix_file = str(regdir / "MT_FlirtMat.txt")
-        flirt.inputs.out_matrix_file = str(regdir / "MT_FlirtMat.txt")
-        flirt.inputs.rigid2D = True
-        flirt.run()
-
-    else:
-        flirt = fsl.FLIRT()
-        flirt.inputs.in_file = str(regdir / f"{mtoutname}_prereg_brain.nii.gz")
-        flirt.inputs.reference = str(refresize)
-        flirt.inputs.out_file = str(Path(regdir) / f"{mtoutname}_flirt.nii.gz")
-        flirt.inputs.out_matrix_file = str(regdir / "MT_FlirtMat.txt")
-        flirt.run()
-
-        flirt = fsl.FLIRT()
-        flirt.inputs.in_file = str(regdir / f"{mtoutname}_merged_bc_brain.nii.gz")
-        flirt.inputs.reference = str(refresize)
-        flirt.inputs.out_file = str(regdir / f"{mtoutname}_reg.nii.gz")
-        flirt.inputs.apply_xfm = True
-        flirt.inputs.in_matrix_file = str(regdir / "MT_FlirtMat.txt")
-        flirt.inputs.out_matrix_file = str(regdir / "MT_FlirtMat.txt")
-        flirt.run()
-
     shutil.copyfile(
-        str(regdir / f"{mtoutname}_reg.nii.gz"),
+        str(regdir / f"{mtoutname}_merged_bc_brain.nii.gz"),
         str(outfolder / f"{mtoutname}_reg.nii.gz"),
     )
 
@@ -1289,7 +1239,7 @@ def _mtreg(
     fslmaths = fsl.ImageMaths()
     fslmaths.inputs.in_file = str(regdir / "Ref_Mask.nii.gz")
     fslmaths.inputs.op_string = "-thr 0.95 -mul"
-    fslmaths.inputs.in_file2 = str(regdir / f"{mtoutname}_reg.nii.gz")
+    fslmaths.inputs.in_file2 = str(outfolder / f"{mtoutname}_reg.nii.gz")
     fslmaths.inputs.args = "-bin"
     fslmaths.inputs.out_file = str(regdir / "Ref_Mask.nii.gz")
 
