@@ -1163,7 +1163,7 @@ def _mtreg(
 
     mtvol = nib.load(str(mtdir[0]))
 
-    if mtvol.ndim != 4:
+    if mtvol.ndim != 4 or mtvol.shape[3] != offsets.shape[0]:
         concatname = [str(i) for i in mtdir]
         fslmerge = fsl.Merge()
         fslmerge.inputs.in_files = concatname
