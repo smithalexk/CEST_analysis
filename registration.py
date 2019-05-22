@@ -1149,8 +1149,8 @@ def _mtreg(
     MTRefImage = -1,
     phantom=False
 ):
-    """ _mtreg7T - Co-registers qMT data, and then registers that data
-    to the high resolution reference measurement set up in _reg_ref_7T
+    """ _mtreg - Co-registers qMT data, and then registers that data
+    to the high resolution reference measurement set up in _reg_ref
     """
     mtdir = sorted(datapath.glob(f"*{mtprefix}*.nii.gz"))
     
