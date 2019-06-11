@@ -277,7 +277,8 @@ def register_mt(
             regdir=regdir,
             cest_name=mtName[0],
             outfolder=OutFolder,
-            phantom=phantom
+            phantom=phantom,
+            refresize="Ref_MTres.nii.gz"
         )
     else:
         _reg_ref(
@@ -286,7 +287,8 @@ def register_mt(
             regdir=regdir,
             cest_name=mtName,
             outfolder=OutFolder,
-            phantom=phantom
+            phantom=phantom,
+            refresize="Ref_MTres.nii.gz"
         )
 
     _b1resize(
@@ -296,7 +298,8 @@ def register_mt(
         b1FAmap=b1FAname,
         outfolder=OutFolder,
         inrefname=RefName,
-        phantom=phantom
+        phantom=phantom,
+        outrefname="Ref_MTres.nii.gz"
     )
 
     if isinstance(mtName, (list, np.ndarray)):
@@ -332,7 +335,8 @@ def register_mt(
             regdir=regdir,
             outfolder=OutFolder,
             inrefname=RefName,
-            phantom=phantom
+            phantom=phantom,
+            outrefname="Ref_MTres.nii.gz"
         )
 
     # Copy Offsets File into OutFolder
@@ -341,7 +345,7 @@ def register_mt(
     return None
 
 
-def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False):
+def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False, refresize="Ref_CESTres.nii.gz"):
     """_reg_ref_7T - Helper function to prep the reference volume for registration
     Resizes, BETs, creates a brain mask, and segments the Reference Volume
     for use in subsequent CEST Processing
@@ -375,7 +379,6 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
     cestdir = sorted(datapath.glob("*{0}*.nii.gz".format(cest_name)))
     refdir = sorted(datapath.glob("*{0}*.nii.gz".format(refname)))
 
-    refresize = "Ref_CESTres.nii.gz"
     cest_img = nib.load(str(cestdir[0]))
     ref_img = nib.load(str(refdir[0]))
     try:
@@ -438,14 +441,31 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False)
         shutil.copyfile(str(regdir / "Ref_bc_restore.nii.gz"), str(regdir / "Ref_sROI.nii.gz"))
 
     # Perform Bias Field Correction on CEST image
-    cestbc = fsl.FAST()
-    cestbc.inputs.in_files = str(cestdir[0])
-    cestbc.inputs.out_basename = str(regdir / "CEST_bc")
-    cestbc.inputs.output_biascorrected = True
-    cestbc.inputs.output_biasfield = True
-    cestbc.inputs.no_pve = True
-    cestbc.inputs.output_type = "NIFTI_GZ"
-    cestbc.run(ignore_exception=True)
+    if "ssfp" in cest_name:
+        cestbet = fsl.BET()
+        cestbet.inputs.in_file = str(cestdir[0])
+        cestbet.inputs.out_file = str(regdir / "CEST_brain.nii.gz")
+        cestbet.inputs.padding = True
+        cestbet.inputs.frac = 0.6
+        cestbet.run()    
+        
+        cestbc = fsl.FAST()
+        cestbc.inputs.in_files = str(regdir / "CEST_brain.nii.gz")
+        cestbc.inputs.out_basename = str(regdir / "CEST_bc")
+        cestbc.inputs.output_biascorrected = True
+        cestbc.inputs.output_biasfield = True
+        cestbc.inputs.no_pve = True
+        cestbc.inputs.output_type = "NIFTI_GZ"
+        cestbc.run(ignore_exception=True)
+    else:
+        cestbc = fsl.FAST()
+        cestbc.inputs.in_files = str(cestdir[0])
+        cestbc.inputs.out_basename = str(regdir / "CEST_bc")
+        cestbc.inputs.output_biascorrected = True
+        cestbc.inputs.output_biasfield = True
+        cestbc.inputs.no_pve = True
+        cestbc.inputs.output_type = "NIFTI_GZ"
+        cestbc.run(ignore_exception=True)
 
     # Skull strip Reference and CEST Images
     if phantom:
@@ -1177,7 +1197,8 @@ def _mtreg(
     # Motion-Correct Data
     mcflirt = fsl.MCFLIRT()
     mcflirt.inputs.in_file = str(mtdir)
-    mcflirt.inputs.ref_vol = 0
+    mcflirt.inputs.mean_vol = True
+    mcflirt.inputs.stages = 4
     mcflirt.inputs.out_file = str(regdir / f"{mtoutname}_merged_mcf.nii.gz")
     if mtvol.ndim < 3 or mtvol.shape[2] == 1:
         mcflirt.inputs.args = "-2d"
@@ -1192,13 +1213,13 @@ def _mtreg(
     fslroi.run()
 
     # Run FAST on Ref image
-    cestfast = fsl.FAST()
-    cestfast.inputs.in_files = str(regdir / f"{mtoutname}_prereg.nii.gz")
-    cestfast.inputs.out_basename = str(regdir / f"{mtoutname}_bc")
-    cestfast.inputs.output_biascorrected = True
-    cestfast.inputs.output_biasfield = True
-    cestfast.inputs.no_pve = True
-    cestfast.run(ignore_exception=True)
+    # cestfast = fsl.FAST()
+    # cestfast.inputs.in_files = str(regdir / f"{mtoutname}_prereg.nii.gz")
+    # cestfast.inputs.out_basename = str(regdir / f"{mtoutname}_bc")
+    # cestfast.inputs.output_biascorrected = True
+    # cestfast.inputs.output_biasfield = True
+    # cestfast.inputs.no_pve = True
+    # cestfast.run(ignore_exception=True)
 
     # Skull Strip MT Image
     if phantom:
