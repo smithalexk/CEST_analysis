@@ -5,6 +5,7 @@ import numpy as np
 from nipype.interfaces import fsl
 import nibabel as nib
 from optparse import OptionParser
+import sys
 
 # Used in case CEST is a 2D slice (for use registering other datasets to Ref)
 _slicenumber2d = list()
@@ -33,7 +34,6 @@ def main():
     # register7T(PathToData,CESTName,OffsetsName,OutFolder,B1Name,T1Name=None,RefName=None,b1FAname=None,WASSRname=None,WASSRoffsets=None)
     raise NotImplementedError
 
-    # rfpulseconverter(options.b1amp, options.pw, options.shape, options.npulses, options.dutycycle)
 
 
 def register_cest(
@@ -595,7 +595,11 @@ def _b1resize(
         b1vol = nib.load(str(b1dir[1]))
     except TypeError:
         b1vol = nib.load(str(b1dir))
-        
+    except IndexError:
+        b1vol = nib.load(str(b1dir[0]))
+    except:
+        print(f"Unexpected Error: {sys.exc_info()[0]}")
+
     if b1FAmap is None and b1vol.ndim < 4:
         if len(b1dir) > 1:
             b1FAmap = Path(b1dir[-1].stem).stem
@@ -932,7 +936,7 @@ def _cestreg(
     fslmaths = fsl.ImageMaths()
     fslmaths.inputs.in_file = str(regdir / "Ref_Mask.nii.gz")
     fslmaths.inputs.op_string = "-thr 0.95 -mul"
-    fslmaths.inputs.in_file2 = str(regdir / f"{cestoutname}_reg.nii.gz")
+    fslmaths.inputs.in_file2 = str(outfolder / f"{cestoutname}_reg.nii.gz")
     fslmaths.inputs.args = "-bin"
     fslmaths.inputs.out_file = str(regdir / "Ref_Mask.nii.gz")
     fslmaths.run()
