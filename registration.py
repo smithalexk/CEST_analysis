@@ -1,40 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+
 from pathlib import Path
 import shutil
 from math import ceil, radians
 import numpy as np
 from nipype.interfaces import fsl
 import nibabel as nib
-from optparse import OptionParser
+import argparse
 import sys
+import json
 
 # Used in case CEST is a 2D slice (for use registering other datasets to Ref)
 _slicenumber2d = list()
-
-
-def main():
-    # usage = "usage: %prog -b <B1amp> -t <B1 Pulse Length> -s <Shape> [options]"
-    # parser = OptionParser(usage=usage)
-    # parser.add_option("-b","--b1amp",dest="b1amp", type="float",help="B1amp, can be in uT, T, or degrees",metavar="<B1 amplitude>")
-    # parser.add_option("-t","--pw",dest="pw", type="float",help="B1 Pulse Length in seconds",metavar='<Pulse Width>')
-    # parser.add_option("-s","--shape",dest="shape",help="B1 Pulse Shape, choose from sincgauss, gauss, or cw",choices=["gauss","sincgauss","cw"],type="choice",metavar="<B1 Shape>")
-    # parser.add_option("-n","--npulses",dest="npulses", type="int",default=1,help="Number of pulses in the pulse train, default=%default",metavar="<Number of Pulses>")
-    # parser.add_option("-d","--dutycycle",dest="dutycycle",type="float",default=1,help="Duty cycle of the pulse train, default=%default",metavar="<Duty Cycle>")
-
-    # (options, args) = parser.parse_args()
-    # if not options.b1amp:
-    #     parser.print_help()
-    #     parser.error("B1amp not given")
-    # elif not options.pw:
-    #     parser.print_help()
-    #     parser.error("pulse width not given")
-    # elif not options.shape:
-    #     parser.print_help()
-    #     parser.error("pulse shape not given")
-
-    # register7T(PathToData,CESTName,OffsetsName,OutFolder,B1Name,T1Name=None,RefName=None,b1FAname=None,WASSRname=None,WASSRoffsets=None)
-    raise NotImplementedError
-
-
 
 def register_cest(
     PathToData,
@@ -48,42 +26,36 @@ def register_cest(
     WASSRname=None,
     WASSRoffsets=None,
     RegDir="RegDir",
-    phantom=False
+    phantom=False,
 ):
+
     """ Register CEST Data - Registers CEST Data to a Reference Dataset
     Registers CEST Data (CESTName) to a Reference Dataset (RefName). Also
     registers B1 Data (B1Name) and T1 Data (T1Name) if present in dataset
     
-    Parameters:
-    -----------
-    PathToData : pathlib Path Object 
-        Path to the data to be processed
-    CESTName : str
-        File name prefix of the CEST data to be processed
-        (utilizes wildcards at beginning/end of name)
-    RefName : str
-        Reference file name.  If not included will use
-        the second dynamic of the 1st set CEST data as a
-        reference.
-    OffsetsName : pathlib Path object
-        The filename for the Offsets file.
-    B1Name : str
-        The filename for the set of B1 files (needs an anatomical
-        + the B1 map, or both anatomical images).  If B1 map not
-        pre-calculated, will use the DREAM sequence.  Will also 
-        divide the B1map by 600 in accordance with the DREAM 
-        sequence output from the scanner.
-    T1Name : str
-        The filename of the T1 scans (optional).
+    Args:
+        PathToData : pathlib Path Object 
+            Path to the data to be processed
+        CESTName : str
+            File name prefix of the CEST data to be processed
+            (utilizes wildcards at beginning/end of name)
+        RefName : str
+            Reference file name.  If not included will use
+            the second dynamic of the 1st set CEST data as a
+            reference.
+        OffsetsName : pathlib Path object
+            The filename for the Offsets file.
+        B1Name : str
+            The filename for the set of B1 files (needs an anatomical
+            + the B1 map, or both anatomical images).  If B1 map not
+            pre-calculated, will use the DREAM sequence.  Will also 
+            divide the B1map by 600 in accordance with the DREAM 
+            sequence output from the scanner.
+        T1Name : str
+            The filename of the T1 scans (optional).
     
     Returns:
-    --------
         None
-    
-    Author:  smithalexk
-    Version: 1.0
-    Changelog:
-        20181210 - initial creation
     """
     # Switch to Path Object for all Folders
 
@@ -129,7 +101,7 @@ def register_cest(
         regdir=regdir,
         cest_name=CESTName[0],
         outfolder=OutFolder,
-        phantom=phantom
+        phantom=phantom,
     )
 
     _b1resize(
@@ -139,7 +111,7 @@ def register_cest(
         b1FAmap=b1FAname,
         outfolder=OutFolder,
         inrefname=RefName,
-        phantom=phantom
+        phantom=phantom,
     )
 
     for idx, i in enumerate(CESTName):
@@ -154,7 +126,7 @@ def register_cest(
             offsetspath=offsetpath,
             regdir=regdir,
             outfolder=OutFolder,
-            phantom=phantom
+            phantom=phantom,
         )
 
     if WASSRname is not None:
@@ -168,7 +140,7 @@ def register_cest(
             offsetspath=(OutFolder / "WASSRoffsets.txt"),
             regdir=regdir,
             outfolder=OutFolder,
-            phantom=phantom
+            phantom=phantom,
         )
 
     if T1Name is not None:
@@ -178,13 +150,14 @@ def register_cest(
             regdir=regdir,
             outfolder=OutFolder,
             inrefname=RefName,
-            phantom=phantom
+            phantom=phantom,
         )
 
     # Copy Offsets File into OutFolder
     shutil.copyfile(str(offsetpath), str(OutFolder / offsetpath.name))
 
     return None
+
 
 def register_mt(
     PathToData,
@@ -196,7 +169,7 @@ def register_mt(
     RefName=None,
     b1FAname=None,
     RegDir="RegDir",
-    phantom=False
+    phantom=False,
 ):
     """ Register MT Data - Registers qMT Data to a Reference Dataset
     Registers qMT Data (qMTName) to a Reference Dataset (RefName). Also
@@ -270,6 +243,7 @@ def register_mt(
             str(regdir / "{0}.nii.gz".format(RefName)),
             str(Path(PathToData) / "qMT_dyn2.nii.gz"),
         )
+
     if isinstance(mtName, (list, np.ndarray)):
         _reg_ref(
             datapath=PathToData,
@@ -278,7 +252,7 @@ def register_mt(
             cest_name=mtName[0],
             outfolder=OutFolder,
             phantom=phantom,
-            refresize="Ref_MTres.nii.gz"
+            refresize="Ref_MTres.nii.gz",
         )
     else:
         _reg_ref(
@@ -288,8 +262,9 @@ def register_mt(
             cest_name=mtName,
             outfolder=OutFolder,
             phantom=phantom,
-            refresize="Ref_MTres.nii.gz"
+            refresize="Ref_MTres.nii.gz",
         )
+
 
     _b1resize(
         datapath=PathToData,
@@ -299,7 +274,7 @@ def register_mt(
         outfolder=OutFolder,
         inrefname=RefName,
         phantom=phantom,
-        outrefname="Ref_MTres.nii.gz"
+        outrefname="Ref_MTres.nii.gz",
     )
 
     if isinstance(mtName, (list, np.ndarray)):
@@ -308,14 +283,14 @@ def register_mt(
                 offsetpath = sorted(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
             else:
                 offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
-            
+
             _mtreg(
                 datapath=PathToData,
                 mtprefix=i,
                 offsetspath=offsetpath,
                 regdir=regdir,
                 outfolder=OutFolder,
-                phantom=phantom
+                phantom=phantom,
             )
     else:
         offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
@@ -325,7 +300,7 @@ def register_mt(
             offsetspath=offsetpath,
             regdir=regdir,
             outfolder=OutFolder,
-            phantom=phantom
+            phantom=phantom,
         )
 
     if T1Name is not None:
@@ -336,7 +311,7 @@ def register_mt(
             outfolder=OutFolder,
             inrefname=RefName,
             phantom=phantom,
-            outrefname="Ref_MTres.nii.gz"
+            outrefname="Ref_MTres.nii.gz",
         )
 
     # Copy Offsets File into OutFolder
@@ -345,7 +320,16 @@ def register_mt(
     return None
 
 
-def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False, refresize="Ref_CESTres.nii.gz"):
+def _reg_ref(
+    datapath,
+    refname,
+    regdir,
+    cest_name,
+    outfolder=None,
+    phantom=False,
+    refresize="Ref_CESTres.nii.gz",
+):
+
     """_reg_ref_7T - Helper function to prep the reference volume for registration
     Resizes, BETs, creates a brain mask, and segments the Reference Volume
     for use in subsequent CEST Processing
@@ -368,19 +352,14 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False,
     Returns:
     --------
         None
-    
-    Author:  smithalexk
-    Version: 1.0
-    Changelog:
-        20181217 - initial creation
 
     """
 
     cestdir = sorted(datapath.glob("*{0}*.nii.gz".format(cest_name)))
     refdir = sorted(datapath.glob("*{0}*.nii.gz".format(refname)))
-
+    
     try:
-    cest_img = nib.load(str(cestdir[0]))
+        cest_img = nib.load(str(cestdir[0]))
     except IndexError: 
         raise NoCESTDataError(f"No CEST Data for {cest_name}")
 
@@ -389,7 +368,6 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False,
         dim3 = cest_img.shape[2]
     except IndexError:
         dim3 = 1
-
 
     # Perform Bias Field Correction on Reference image
     refbc = fsl.FAST()
@@ -442,7 +420,9 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False,
             [FID.write(f"{slice}\n") for slice in _slicenumber2d]
 
     else:
-        shutil.copyfile(str(regdir / "Ref_bc_restore.nii.gz"), str(regdir / "Ref_sROI.nii.gz"))
+        shutil.copyfile(
+            str(regdir / "Ref_bc_restore.nii.gz"), str(regdir / "Ref_sROI.nii.gz")
+        )
 
     # Perform Bias Field Correction on CEST image
     if "ssfp" in cest_name:
@@ -451,8 +431,8 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False,
         cestbet.inputs.out_file = str(regdir / "CEST_brain.nii.gz")
         cestbet.inputs.padding = True
         cestbet.inputs.frac = 0.6
-        cestbet.run()    
-        
+        cestbet.run()
+
         cestbc = fsl.FAST()
         cestbc.inputs.in_files = str(regdir / "CEST_brain.nii.gz")
         cestbc.inputs.out_basename = str(regdir / "CEST_bc")
@@ -504,8 +484,8 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False,
         btr.inputs.in_file = str(regdir / "CEST_bc_restore.nii.gz")
         btr.inputs.out_file = str(regdir / "CEST_brain.nii.gz")
         if (
-            cest_img.ndim <= 2 
-            or cest_img.shape[2] < 5 
+            cest_img.ndim <= 2
+            or cest_img.shape[2] < 5
             or cest_img.header.get_zooms()[2] * cest_img.shape[2] < 75
         ):
             btr.inputs.padding = True
@@ -537,7 +517,7 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False,
             str(regdir / "Ref_Mask.nii.gz"), str(outfolder / "Ref_Mask.nii.gz")
         )
 
-    return None
+    return
 
 
 def _b1resize(
@@ -548,7 +528,7 @@ def _b1resize(
     outfolder=Path.cwd(),
     inrefname=None,
     outrefname="Ref_CESTres.nii.gz",
-    phantom=False
+    phantom=False,
 ):
     """B1_RESIZE - Preprocesses B1 Data for Use with FABBER
     Takes the raw B1 data and processes it into a B1 map.  Also flirts it
@@ -594,7 +574,7 @@ def _b1resize(
         fslmerge.run()
 
         b1dir = regdir / f"{b1name}_merged.nii.gz"
-    
+
     try:
         b1vol = nib.load(str(b1dir[1]))
     except TypeError:
@@ -668,7 +648,7 @@ def _b1resize(
 
     if phantom:
         # _FOVDiff(str(regdir / "B1_bc_restore.nii.gz"), str(inrefdir), "B1resred.txt", regdir=regdir)
-        
+
         # Flirt B1 Image Data to Original Reference volume
         flt = fsl.FLIRT()
         flt.inputs.in_file = str(regdir / "B1_bc_restore.nii.gz")
@@ -774,13 +754,13 @@ def _cestreg(
     regdir,
     outfolder=Path.cwd(),
     CESTRefImage=0,
-    phantom=False
+    phantom=False,
 ):
     """ _cestreg7T - Co-registers CEST data, and then registers that data
     to the high resolution reference measurement set up in _reg_ref_7T
     """
     cestdir = sorted(datapath.glob(f"*{cestprefix}*.nii.gz"))
-    
+
     offsets = np.loadtxt(str(offsetspath))
 
     n_ones = np.where(abs(offsets) < 1)[0]
@@ -929,13 +909,12 @@ def _cestreg(
     fmaths.inputs.out_file = str(regdir / f"{cestoutname}_mergedTot_bc_brain.nii.gz")
     fmaths.run()
 
-
     # Move CEST data to analysis folder
     shutil.copyfile(
         str(regdir / f"{cestoutname}_mergedTot_bc_brain.nii.gz"),
         str(outfolder / f"{cestoutname}_reg.nii.gz"),
     )
-    
+
     # Correct Mask so it is set at extent of CEST data
     fslmaths = fsl.ImageMaths()
     fslmaths.inputs.in_file = str(regdir / "Ref_Mask.nii.gz")
@@ -946,10 +925,7 @@ def _cestreg(
     fslmaths.run()
 
     # Copy Corrected mask into Analysis folder
-    shutil.copyfile(
-        str(regdir / "Ref_Mask.nii.gz"),
-        str(outfolder / "Ref_Mask.nii.gz")
-    )
+    shutil.copyfile(str(regdir / "Ref_Mask.nii.gz"), str(outfolder / "Ref_Mask.nii.gz"))
 
     # Change mask to only a single volume (instead of 4D volume from CEST data)
     maskroi = fsl.ExtractROI()
@@ -969,7 +945,7 @@ def _t1reg(
     outfolder=Path.cwd(),
     inrefname=None,
     outrefname="Ref_CESTres.nii.gz",
-    phantom=False
+    phantom=False,
 ):
     """ _t1reg - Co-registers T1 data, and then registers that data
     to the high resolution reference measurement set up in _reg_ref_7T/_reg_ref
@@ -1039,7 +1015,7 @@ def _t1reg(
         fmaths.inputs.out_file = str(regdir / f"{t1outname}_brain_mask.nii.gz")
         fmaths.inputs.op_string = "-bin"
         fmaths.run()
-        
+
         if t1vol.ndim < 3 or t1vol.shape[2] == 1:
             # Flirt first T1 Image to Original Reference volume
             flt = fsl.FLIRT()
@@ -1085,7 +1061,6 @@ def _t1reg(
     fmaths.inputs.out_file = str(regdir / f"{t1outname}_merged_brain.nii.gz")
     fmaths.run()
 
-    
     if len(_slicenumber2d) > 0:
         # Flirt T1 Map Data to Original Reference volume
         if t1vol.ndim < 3 or t1vol.shape[2] == 1:
@@ -1170,24 +1145,25 @@ def _t1reg(
 
     return None
 
+
 def _mtreg(
     datapath,
     mtprefix,
     offsetspath,
     regdir,
     outfolder=Path.cwd(),
-    MTRefImage = -1,
-    phantom=False
+    MTRefImage=-1,
+    phantom=False,
 ):
     """ _mtreg - Co-registers qMT data, and then registers that data
     to the high resolution reference measurement set up in _reg_ref
     """
     mtdir = sorted(datapath.glob(f"*{mtprefix}*.nii.gz"))
-    
+
     offsets = np.loadtxt(str(offsetspath))
 
     if MTRefImage == -1:
-        MTRefImage = len(offsets) -1
+        MTRefImage = len(offsets) - 1
 
     mtoutname = mtprefix
 
@@ -1275,13 +1251,9 @@ def _mtreg(
     fslmaths.inputs.out_file = str(regdir / "Ref_Mask.nii.gz")
 
     # Copy Corrected mask into Analysis folder
-    shutil.copyfile(
-        str(regdir / "Ref_Mask.nii.gz"),
-        str(outfolder / "Ref_Mask.nii.gz")
-    )
+    shutil.copyfile(str(regdir / "Ref_Mask.nii.gz"), str(outfolder / "Ref_Mask.nii.gz"))
 
     return None
-
 
 
 # Helper Functions:
@@ -1295,12 +1267,12 @@ def _FOVDiff(inputvol, refvol, outfile, regdir=Path.cwd()):
     ref_img = nib.load(refvol)
 
     # Find reference dimensions
-    refdims = ref_img.header['dim'][1:4]
-    refpixdims = ref_img.header['pixdim'][1:4]
+    refdims = ref_img.header["dim"][1:4]
+    refpixdims = ref_img.header["pixdim"][1:4]
 
     # Find input image dimensions
-    inputdims = input_img.header['dim'][1:4]
-    inputpixdims = input_img.header['pixdim'][1:4]
+    inputdims = input_img.header["dim"][1:4]
+    inputpixdims = input_img.header["pixdim"][1:4]
 
     refFOV = np.asarray(refdims) * np.asarray(refpixdims)
     inputFOV = np.asarray(inputdims) * np.asarray(inputpixdims)
@@ -1329,6 +1301,104 @@ def _genidentitymat(regdir=Path.cwd()):
 
 class NoFAMapError(Exception):
     pass
+
+class NoCESTDataError(Exception):
+    pass
+
+class JsonKeyError(Exception):
+    pass
+
+
+json_keys = [
+    "Analysis Path",
+    "Data Path",
+    "Scan ID",
+    "Reference Name",
+    "MT Names",
+    "CEST Names",
+    "T1 Name",
+    "B1 Anatomical Name",
+    "B1 FA Name",
+    "Offset File Names",
+]
+
+
+def help_json_file_req():
+    print("HELP!!")
+
+
+def json_file_parser(jsonfile):
+    with open(jsonfile, "r") as FID:
+        jsondata = json.load(FID)
+
+    return json_to_dict(jsondata)
+
+
+def json_to_dict(jsondata):
+    if set(("CEST Names", "MT Names")).issubset(jsondata):
+        raise JsonKeyError(
+            "Cannot use both CEST and MT keys together!\nIf in doubt, place all names into 'CEST Names' key!"
+        )
+    elif not any([x in jsondata.keys() for x in ["CEST Names", "MT Names"]]):
+        raise JsonKeyError(
+            "Need to have either 'CEST Names' or 'MT Names' keys!"
+        )
+    for key in json_keys:
+        if key not in jsondata.keys() and key not in ["CEST Names", "MT Names"]:
+            raise JsonKeyError(f"Missing: '{key}' from json file")
+        elif key not in jsondata.keys() and key in  ["CEST Names", "MT Names"]:
+            continue
+        
+        if not isinstance(jsondata[key], list):
+            jsondata[key] = jsondata[key].split('.')[0]
+
+        if key == "Analysis Path":
+            jsondata[key] = Path(jsondata[key])
+        elif key == "Data Path":
+            jsondata[key] = Path(jsondata[key])
+    
+    
+    return jsondata
+    
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(dest="j_file", type=str,help="JSON File where information is stored",metavar="<JSON File>")
+
+    args = parser.parse_args()
+
+    jsondata = json_file_parser(args.j_file)
+
+    for _, sn in enumerate(jsondata["Scan ID"]):
+
+        print(f"Running registration for scan: {sn}")
+        analysis_folder = jsondata["Analysis Path"] / sn
+
+        for mtidx, mt in enumerate(jsondata["MT Names"]):
+            print(f"Registering {mt}")
+            dir_test = list((analysis_folder / mt).glob("*{0}*.nii.gz".format(mt)))
+            # Copy offsets file into DataFolder
+            if not (jsondata["Data Path"] / sn / "{0}.txt".format(jsondata["Offset File Names"][mtidx])).exists():
+                shutil.copyfile(
+                    str(jsondata["Data Path"] / "{0}.txt".format(jsondata["Offset File Names"][mtidx])),
+                    str(jsondata["Data Path"] / sn / "{0}.txt".format(jsondata["Offset File Names"][mtidx])),
+                )
+            # Create a new folder for Data analysis and run registration for that analysis
+            if not dir_test:
+                (analysis_folder / mt).mkdir(exist_ok=True, parents=True)
+
+                register_mt(
+                    PathToData=(jsondata["Data Path"] / sn),
+                    RefName=jsondata["Reference Name"],
+                    mtName=mt,
+                    OffsetsName=jsondata["Offset File Names"][mtidx],
+                    OutFolder=(analysis_folder / mt),
+                    B1Name=jsondata["B1 Anatomical Name"],
+                    b1FAname=jsondata["B1 FA Name"],
+                    T1Name=jsondata["T1 Name"],
+                    RegDir=f"RegDir_{mt}",
+                )
 
 
 if __name__ == "__main__":
