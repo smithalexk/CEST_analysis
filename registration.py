@@ -1339,22 +1339,28 @@ def json_to_dict(jsondata):
         raise JsonKeyError(
             "Cannot use both CEST and MT keys together!\nIf in doubt, place all names into 'CEST Names' key!"
         )
-    elif not any([x in jsondata.keys() for x in ["CEST Names", "MT Names"]]):
+    elif not any(x in jsondata.keys() for x in ["CEST Names", "MT Names"]):
         raise JsonKeyError(
             "Need to have either 'CEST Names' or 'MT Names' keys!"
         )
+    else:
+        for x in ["CEST Names", "MT Names"]:
+            if x not in jsondata.keys():
+                json_keys.remove(x)
+
     for key in json_keys:
-        if key not in jsondata.keys() and key not in ["CEST Names", "MT Names"]:
-            raise JsonKeyError(f"Missing: '{key}' from json file")
-        elif key not in jsondata.keys() and key in  ["CEST Names", "MT Names"]:
-            continue
+        if key not in jsondata.keys():
+            if key == "B1 FA Name":
+                print("Assuming B1 Anatomical Images have sufficient data to calculate B1 map!")
+                jsondata[key] = None
+                continue
+            else:
+                raise JsonKeyError(f"Missing: '{key}' from json file")
         
         if not isinstance(jsondata[key], list):
             jsondata[key] = jsondata[key].split('.')[0]
 
-        if key == "Analysis Path":
-            jsondata[key] = Path(jsondata[key])
-        elif key == "Data Path":
+        if key in ["Analysis Path", "Data Path"]:
             jsondata[key] = Path(jsondata[key])
     
     
