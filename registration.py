@@ -379,7 +379,11 @@ def _reg_ref(datapath, refname, regdir, cest_name, outfolder=None,phantom=False,
     cestdir = sorted(datapath.glob("*{0}*.nii.gz".format(cest_name)))
     refdir = sorted(datapath.glob("*{0}*.nii.gz".format(refname)))
 
+    try:
     cest_img = nib.load(str(cestdir[0]))
+    except IndexError: 
+        raise NoCESTDataError(f"No CEST Data for {cest_name}")
+
     ref_img = nib.load(str(refdir[0]))
     try:
         dim3 = cest_img.shape[2]
@@ -1011,13 +1015,15 @@ def _t1reg(
     ).run()
 
     # Run FAST on Ref T1 image
-    t1fast = fsl.FAST()
-    t1fast.inputs.in_files = str(regdir / f"{t1outname}_vol1.nii.gz")
-    t1fast.inputs.out_basename = str(regdir / f"{t1outname}_bc")
-    t1fast.inputs.output_biascorrected = True
-    t1fast.inputs.output_biasfield = True
-    t1fast.inputs.no_pve = True
-    t1fast.run(ignore_exception=True)
+    # t1fast = fsl.FAST()
+    # t1fast.inputs.in_files = str(regdir / f"{t1outname}_vol1.nii.gz")
+    # t1fast.inputs.out_basename = str(regdir / f"{t1outname}_bc")
+    # t1fast.inputs.output_biascorrected = True
+    # t1fast.inputs.output_biasfield = True
+    # t1fast.inputs.no_pve = True
+    # t1fast.run(ignore_exception=True)
+
+
 
     t1vol = nib.load(str(t1dir[0]))
 
@@ -1056,7 +1062,7 @@ def _t1reg(
             flt.run()
     else:
         bett1 = fsl.BET()
-        bett1.inputs.in_file = str(regdir / f"{t1outname}_bc_restore.nii.gz")
+        bett1.inputs.in_file = str(regdir / f"{t1outname}_vol1.nii.gz")
         bett1.inputs.out_file = str(regdir / f"{t1outname}_brain.nii.gz")
         bett1.inputs.mask = True
         bett1.inputs.padding = True
@@ -1064,7 +1070,7 @@ def _t1reg(
 
         # Flirt first T1 Image to Original Reference volume
         flt = fsl.FLIRT()
-        flt.inputs.in_file = str(regdir / f"{t1outname}_bc_restore.nii.gz")
+        flt.inputs.in_file = str(regdir / f"{t1outname}_vol1.nii.gz")
         flt.inputs.reference = str(inrefdir)
         flt.inputs.out_file = str(regdir / "T1_to_ref.nii.gz")
         flt.inputs.output_type = "NIFTI_GZ"
