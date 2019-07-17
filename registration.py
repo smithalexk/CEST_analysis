@@ -14,6 +14,7 @@ import json
 # Used in case CEST is a 2D slice (for use registering other datasets to Ref)
 _slicenumber2d = list()
 
+
 def register_cest(
     PathToData,
     CESTName,
@@ -870,8 +871,6 @@ def _t1reg(
     # t1fast.inputs.no_pve = True
     # t1fast.run(ignore_exception=True)
 
-
-
     t1vol = nib.load(str(t1dir[0]))
 
     # BET T1 Ref image
@@ -1185,7 +1184,6 @@ json_keys = [
     "Data Path",
     "Scan ID",
     "Reference Name",
-    "MT Names",
     "CEST Names",
     "T1 Name",
     "B1 Anatomical Name",
@@ -1194,9 +1192,14 @@ json_keys = [
 ]
 
 
-def help_json_file_req():
-    print("HELP!!")
-
+def create_json_example_file():
+    json_dict = {i : "FileName" for i in json_keys}
+    json_dict['Analysis Path'] = "/Path/To/Analysis/Folder"
+    json_dict['Data Path'] = "/Path/To/Scans/Folder"
+    json_dict['Scan ID'] = "/Name/of/Scan/Folder(s)"
+    with open("json_file_example.json",'w') as FID:
+        json.dump(json_dict,FID)
+    return None
 
 def json_file_parser(jsonfile):
     with open(jsonfile, "r") as FID:
@@ -1211,39 +1214,48 @@ def json_to_dict(jsondata):
             "Cannot use both CEST and MT keys together!\nIf in doubt, place all names into 'CEST Names' key!"
         )
     elif not any(x in jsondata.keys() for x in ["CEST Names", "MT Names"]):
-        raise JsonKeyError(
-            "Need to have either 'CEST Names' or 'MT Names' keys!"
-        )
+        raise JsonKeyError("Need to have either 'CEST Names' or 'MT Names' keys!")
     else:
-        for x in ["CEST Names", "MT Names"]:
-            if x not in jsondata.keys():
-                json_keys.remove(x)
+        if "CEST Names" not in jsondata.keys():
+            jsondata["CEST Names"] = jsondata.pop("MT Names")
 
     for key in json_keys:
         if key not in jsondata.keys():
             if key == "B1 FA Name":
-                print("Assuming B1 Anatomical Images have sufficient data to calculate B1 map!")
+                print(
+                    "Assuming B1 Anatomical Images have sufficient data to calculate B1 map!"
+                )
                 jsondata[key] = None
                 continue
             else:
                 raise JsonKeyError(f"Missing: '{key}' from json file")
         
         if not isinstance(jsondata[key], list):
-            jsondata[key] = jsondata[key].split('.')[0]
+            jsondata[key] = jsondata[key].split(".")[0]
 
         if key in ["Analysis Path", "Data Path"]:
             jsondata[key] = Path(jsondata[key])
     
-    
     return jsondata
     
 
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(dest="j_file", type=str,help="JSON File where information is stored",metavar="<JSON File>")
+    parser.add_argument(
+        dest="j_file",
+        type=str,
+        help="JSON file containing key-value pairs which point to files. See 'Example_json_file.json' for example",
+        metavar="<JSON File>",
+    )
+    try:
+        args = parser.parse_args()
+    except SystemExit as err:
+        create_json_example_file()
+        if err.code == 2:
+            parser.print_help()
+        sys.exit(0)
+    
 
-    args = parser.parse_args()
 
     jsondata = json_file_parser(args.j_file)
 
@@ -1252,29 +1264,40 @@ def main():
         print(f"Running registration for scan: {sn}")
         analysis_folder = jsondata["Analysis Path"] / sn
 
-        for mtidx, mt in enumerate(jsondata["MT Names"]):
-            print(f"Registering {mt}")
-            dir_test = list((analysis_folder / mt).glob("*{0}*.nii.gz".format(mt)))
+        for idx, cest_data in enumerate(jsondata["CEST Names"]):
+            print(f"Registering {cest_data}")
+            dir_test = list((analysis_folder / cest_data).glob("*{0}*.nii.gz".format(cest_data)))
             # Copy offsets file into DataFolder
-            if not (jsondata["Data Path"] / sn / "{0}.txt".format(jsondata["Offset File Names"][mtidx])).exists():
+            if not (
+                jsondata["Data Path"]
+                / sn
+                / "{0}.txt".format(jsondata["Offset File Names"][idx])
+            ).exists():
                 shutil.copyfile(
-                    str(jsondata["Data Path"] / "{0}.txt".format(jsondata["Offset File Names"][mtidx])),
-                    str(jsondata["Data Path"] / sn / "{0}.txt".format(jsondata["Offset File Names"][mtidx])),
+                    str(
+                        jsondata["Data Path"]
+                        / "{0}.txt".format(jsondata["Offset File Names"][idx])
+                    ),
+                    str(
+                        jsondata["Data Path"]
+                        / sn
+                        / "{0}.txt".format(jsondata["Offset File Names"][idx])
+                    ),
                 )
             # Create a new folder for Data analysis and run registration for that analysis
             if not dir_test:
-                (analysis_folder / mt).mkdir(exist_ok=True, parents=True)
+                (analysis_folder / cest_data).mkdir(exist_ok=True, parents=True)
 
-                register_mt(
+                register_cest(
                     PathToData=(jsondata["Data Path"] / sn),
                     RefName=jsondata["Reference Name"],
-                    mtName=mt,
-                    OffsetsName=jsondata["Offset File Names"][mtidx],
-                    OutFolder=(analysis_folder / mt),
+                    CESTName=cest_data,
+                    OffsetsName=jsondata["Offset File Names"][idx],
+                    OutFolder=(analysis_folder / cest_data),
                     B1Name=jsondata["B1 Anatomical Name"],
                     b1FAname=jsondata["B1 FA Name"],
                     T1Name=jsondata["T1 Name"],
-                    RegDir=f"RegDir_{mt}",
+                    RegDir=f"RegDir_{cest_data}",
                 )
 
 
