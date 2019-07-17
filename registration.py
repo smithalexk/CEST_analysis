@@ -128,23 +128,23 @@ def register_cest(
         offsets = np.sort(np.loadtxt(offsetpath))
 
         if 0 in np.arange(offsets[0], offsets[-1], 1):
-        _cestreg(
-            datapath=PathToData,
-            cestprefix=i,
-            offsetspath=offsetpath,
-            regdir=regdir,
-            outfolder=OutFolder,
-            phantom=phantom,
-        )
+            _cestreg(
+                datapath=PathToData,
+                cestprefix=i,
+                offsetspath=offsetpath,
+                regdir=regdir,
+                outfolder=OutFolder,
+                phantom=phantom,
+            )
         else:
             _mtreg(
-            datapath=PathToData,
+                datapath=PathToData,
                 mtprefix=i,
                 offsetspath=offsetpath,
-            regdir=regdir,
-            outfolder=OutFolder,
-            phantom=phantom,
-        )
+                regdir=regdir,
+                outfolder=OutFolder,
+                phantom=phantom,
+            )
 
     if T1Name is not None:
         _t1reg(
@@ -186,8 +186,8 @@ def register_mt(
         RefName=RefName,
         b1FAname=b1FAname,
         RegDir=RegDir,
-                phantom=phantom,
-            )
+        phantom=phantom,
+    )
 
     return None
 
@@ -229,10 +229,10 @@ def _reg_ref(
 
     cestdir = sorted(datapath.glob("*{0}*.nii.gz".format(cest_name)))
     refdir = sorted(datapath.glob("*{0}*.nii.gz".format(refname)))
-    
+
     try:
         cest_img = nib.load(str(cestdir[0]))
-    except IndexError: 
+    except IndexError:
         raise NoCESTDataError(f"No CEST Data for {cest_name}")
 
     ref_img = nib.load(str(refdir[0]))
@@ -1172,8 +1172,10 @@ def _genidentitymat(regdir=Path.cwd()):
 class NoFAMapError(Exception):
     pass
 
+
 class NoCESTDataError(Exception):
     pass
+
 
 class JsonKeyError(Exception):
     pass
@@ -1193,13 +1195,14 @@ json_keys = [
 
 
 def create_json_example_file():
-    json_dict = {i : "FileName" for i in json_keys}
-    json_dict['Analysis Path'] = "/Path/To/Analysis/Folder"
-    json_dict['Data Path'] = "/Path/To/Scans/Folder"
-    json_dict['Scan ID'] = "/Name/of/Scan/Folder(s)"
-    with open("json_file_example.json",'w') as FID:
-        json.dump(json_dict,FID)
+    json_dict = {i: "FileName" for i in json_keys}
+    json_dict["Analysis Path"] = "/Path/To/Analysis/Folder"
+    json_dict["Data Path"] = "/Path/To/Scans/Folder"
+    json_dict["Scan ID"] = "/Name/of/Scan/Folder(s)"
+    with open("json_file_example.json", "w") as FID:
+        json.dump(json_dict, FID)
     return None
+
 
 def json_file_parser(jsonfile):
     with open(jsonfile, "r") as FID:
@@ -1229,15 +1232,15 @@ def json_to_dict(jsondata):
                 continue
             else:
                 raise JsonKeyError(f"Missing: '{key}' from json file")
-        
+
         if not isinstance(jsondata[key], list):
             jsondata[key] = jsondata[key].split(".")[0]
 
         if key in ["Analysis Path", "Data Path"]:
             jsondata[key] = Path(jsondata[key])
-    
+
     return jsondata
-    
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -1254,8 +1257,6 @@ def main():
         if err.code == 2:
             parser.print_help()
         sys.exit(0)
-    
-
 
     jsondata = json_file_parser(args.j_file)
 
@@ -1266,7 +1267,9 @@ def main():
 
         for idx, cest_data in enumerate(jsondata["CEST Names"]):
             print(f"Registering {cest_data}")
-            dir_test = list((analysis_folder / cest_data).glob("*{0}*.nii.gz".format(cest_data)))
+            dir_test = list(
+                (analysis_folder / cest_data).glob("*{0}*.nii.gz".format(cest_data))
+            )
             # Copy offsets file into DataFolder
             if not (
                 jsondata["Data Path"]
