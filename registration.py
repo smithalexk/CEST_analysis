@@ -23,8 +23,6 @@ def register_cest(
     T1Name=None,
     RefName=None,
     b1FAname=None,
-    WASSRname=None,
-    WASSRoffsets=None,
     RegDir="RegDir",
     phantom=False,
 ):
@@ -114,12 +112,21 @@ def register_cest(
         phantom=phantom,
     )
 
+    # Ensures enumerate will using entire string name instead of stepping through it
+    if not isinstance(CESTName, (list, np.ndarray)):
+        CESTName = [CESTName]
+
     for idx, i in enumerate(CESTName):
 
+        # Need to deal with cases where same offsets are used over multiple CEST/MT datasets
         if isinstance(OffsetsName, (list, np.ndarray)):
             offsetpath = sorted(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
         else:
             offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
+
+        offsets = np.sort(np.loadtxt(offsetpath))
+
+        if 0 in np.arange(offsets[0], offsets[-1], 1):
         _cestreg(
             datapath=PathToData,
             cestprefix=i,
@@ -128,16 +135,11 @@ def register_cest(
             outfolder=OutFolder,
             phantom=phantom,
         )
-
-    if WASSRname is not None:
-        with (OutFolder / "WASSRoffsets.txt").open(mode="w") as FID:
-            for ii in WASSRoffsets:
-                FID.write(f"{ii}\n")
-
-        _cestreg(
+        else:
+            _mtreg(
             datapath=PathToData,
-            cestprefix=WASSRname,
-            offsetspath=(OutFolder / "WASSRoffsets.txt"),
+                mtprefix=i,
+                offsetspath=offsetpath,
             regdir=regdir,
             outfolder=OutFolder,
             phantom=phantom,
@@ -171,151 +173,20 @@ def register_mt(
     RegDir="RegDir",
     phantom=False,
 ):
-    """ Register MT Data - Registers qMT Data to a Reference Dataset
-    Registers qMT Data (qMTName) to a Reference Dataset (RefName). Also
-    registers B1 Data (B1Name) and T1 Data (T1Name) if present in dataset
-    
-    Parameters:
-    -----------
-    PathToData : pathlib Path Object 
-        Path to the data to be processed
-    mtName : str
-        File name prefix of the qMT data to be processed
-        (utilizes wildcards at beginning/end of name)
-    RefName : str
-        Reference file name.  If not included will use
-        the second dynamic of the 1st set CEST data as a
-        reference.
-    OffsetsName : pathlib Path object
-        The filename for the Offsets file.
-    B1Name : str
-        The filename for the set of B1 files (needs an anatomical
-        + the B1 map, or both anatomical images).  If B1 map not
-        pre-calculated, will use the DREAM sequence.  Will also 
-        divide the B1map by 600 in accordance with the DREAM 
-        sequence output from the scanner.
-    T1Name : str
-        The filename of the T1 scans (optional).
-    
-    Returns:
-    --------
-        None
-    
-    Author:  smithalexk
-    Version: 1.0
-    Changelog:
-        20181210 - initial creation
+    """ Wrapper to call register_cest. Left for legacy code
     """
-    # Switch to Path Object for all Folders
-
-    OutFolder = OutFolder
-    regdir = PathToData / RegDir
-
-    if not regdir.is_dir():
-        regdir.mkdir(parents=True)
-    else:
-        shutil.rmtree(str(regdir))
-        regdir.mkdir(parents=True)
-
-    # Generate identity matrix for use in registrations
-    _genidentitymat(regdir)
-
-    if RefName is None:
-
-        # Ref Data Name
-        RefPath = mtName[0]
-
-        # Splitting 1stt MT image from rest for use as reference image
-        Refdir = sorted(PathToData.glob("*{0}*nii.gz".format(RefPath)))
-        fsl.ExtractROI(
-            in_file=str(Refdir[0]),
-            roi_file=str(regdir / "qMT_dyn2.nii.gz"),
-            t_min=0,
-            t_size=1,
-        ).run()
-
-        # Ref Data Name
-        RefName = "qMT_dyn2"
-        shutil.copyfile(
-            str(regdir / "{0}.nii.gz".format(RefName)), str(regdir / "Ref_sROI.nii.gz")
-        )
-        shutil.copyfile(
-            str(regdir / "{0}.nii.gz".format(RefName)),
-            str(Path(PathToData) / "qMT_dyn2.nii.gz"),
-        )
-
-    if isinstance(mtName, (list, np.ndarray)):
-        _reg_ref(
-            datapath=PathToData,
-            refname=RefName,
-            regdir=regdir,
-            cest_name=mtName[0],
-            outfolder=OutFolder,
-            phantom=phantom,
-            refresize="Ref_MTres.nii.gz",
-        )
-    else:
-        _reg_ref(
-            datapath=PathToData,
-            refname=RefName,
-            regdir=regdir,
-            cest_name=mtName,
-            outfolder=OutFolder,
-            phantom=phantom,
-            refresize="Ref_MTres.nii.gz",
-        )
-
-
-    _b1resize(
-        datapath=PathToData,
-        b1name=B1Name,
-        regdir=regdir,
-        b1FAmap=b1FAname,
-        outfolder=OutFolder,
-        inrefname=RefName,
-        phantom=phantom,
-        outrefname="Ref_MTres.nii.gz",
-    )
-
-    if isinstance(mtName, (list, np.ndarray)):
-        for idx, i in enumerate(mtName):
-            if isinstance(OffsetsName, (list, np.ndarray)):
-                offsetpath = sorted(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
-            else:
-                offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
-
-            _mtreg(
-                datapath=PathToData,
-                mtprefix=i,
-                offsetspath=offsetpath,
-                regdir=regdir,
-                outfolder=OutFolder,
+    register_cest(
+        PathToData=PathToData,
+        CESTName=mtName,
+        OffsetsName=OffsetsName,
+        OutFolder=OutFolder,
+        B1Name=B1Name,
+        T1Name=T1Name,
+        RefName=RefName,
+        b1FAname=b1FAname,
+        RegDir=RegDir,
                 phantom=phantom,
             )
-    else:
-        offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
-        _mtreg(
-            datapath=PathToData,
-            mtprefix=mtName,
-            offsetspath=offsetpath,
-            regdir=regdir,
-            outfolder=OutFolder,
-            phantom=phantom,
-        )
-
-    if T1Name is not None:
-        _t1reg(
-            datapath=PathToData,
-            t1prefix=T1Name,
-            regdir=regdir,
-            outfolder=OutFolder,
-            inrefname=RefName,
-            phantom=phantom,
-            outrefname="Ref_MTres.nii.gz",
-        )
-
-    # Copy Offsets File into OutFolder
-    shutil.copyfile(str(offsetpath), str(OutFolder / offsetpath.name))
 
     return None
 
