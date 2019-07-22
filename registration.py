@@ -61,6 +61,10 @@ def register_cest(
     OutFolder = OutFolder
     regdir = PathToData / RegDir
 
+    # Ensures enumerate will using entire string name instead of stepping through it
+    if not isinstance(CESTName, (list, np.ndarray)):
+        CESTName = [CESTName]
+
     if not regdir.is_dir():
         regdir.mkdir(parents=True)
     else:
@@ -112,10 +116,6 @@ def register_cest(
         inrefname=RefName,
         phantom=phantom,
     )
-
-    # Ensures enumerate will using entire string name instead of stepping through it
-    if not isinstance(CESTName, (list, np.ndarray)):
-        CESTName = [CESTName]
 
     for idx, i in enumerate(CESTName):
 
