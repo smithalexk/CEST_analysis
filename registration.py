@@ -863,13 +863,13 @@ def _t1reg(
     ).run()
 
     # Run FAST on Ref T1 image
-    # t1fast = fsl.FAST()
-    # t1fast.inputs.in_files = str(regdir / f"{t1outname}_vol1.nii.gz")
-    # t1fast.inputs.out_basename = str(regdir / f"{t1outname}_bc")
-    # t1fast.inputs.output_biascorrected = True
-    # t1fast.inputs.output_biasfield = True
-    # t1fast.inputs.no_pve = True
-    # t1fast.run(ignore_exception=True)
+    t1fast = fsl.FAST()
+    t1fast.inputs.in_files = str(regdir / f"{t1outname}_vol1.nii.gz")
+    t1fast.inputs.out_basename = str(regdir / f"{t1outname}_bc")
+    t1fast.inputs.output_biascorrected = True
+    t1fast.inputs.output_biasfield = True
+    t1fast.inputs.no_pve = True
+    t1fast.run(ignore_exception=True)
 
     t1vol = nib.load(str(t1dir[0]))
 
