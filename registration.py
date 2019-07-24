@@ -127,7 +127,7 @@ def register_cest(
 
         offsets = np.sort(np.loadtxt(offsetpath))
 
-        if 0 in np.arange(offsets[0], offsets[-1], 1):
+        if 0 in np.arange(np.floor(offsets[0]), np.ceil(offsets[-1]), 1):
             _cestreg(
                 datapath=PathToData,
                 cestprefix=i,
