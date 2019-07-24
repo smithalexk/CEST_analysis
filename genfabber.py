@@ -141,7 +141,7 @@ def create_fabbercest_prompt(
         FID.write(
             f"--method=vb --noise=white --model=cest --data-order=singlefile \\\n"
         )
-        FID.write(f"--max-iterations=20 --output={data_stem} \\\n")
+        FID.write(f"--max-iterations=20 --output={data_stem} --save-model-extras \\\n")
         FID.write(f"--spec={dataspec_stem}.txt --t12prior")
         FID.write(f" --pools={poolmat_stem}.txt --ptrain={ptrain_stem}.txt \\\n")
         FID.write(f"--save-model-fit --satspoil \\\n")
@@ -166,13 +166,12 @@ def create_fabbercest_prompt(
                 f"\\\n--PSP_byname{pspcounter}=B1corr --PSP_byname{pspcounter}_type=I "
             )
             FID.write(f"--PSP_byname{pspcounter}_image={B1Name}.nii.gz ")
-            FID.write(f"--PSP_byname{pspcounter}_prec=1e10 ")
             pspcounter += 1
 
         # Inputs T1 dataset
         if T1Name is not None:
             FID.write(
-                f"\\\n--PSP_byname{pspcounter}=T1 --PSP_byname{pspcounter}_type=I "
+                f"\\\n--PSP_byname{pspcounter}=T1a --PSP_byname{pspcounter}_type=I "
             )
             FID.write(f"--PSP_byname{pspcounter}_image={T1Name}.nii.gz ")
             FID.write(f"--PSP_byname{pspcounter}_prec=1e10 ")
