@@ -1242,6 +1242,46 @@ def json_to_dict(jsondata):
     return jsondata
 
 
+def copy_offsets(src, dest, filename):
+    # Copy offsets file into DataFolder
+    if not (dest / filename).exists():
+        shutil.copyfile(src / filename, dest / filename)
+
+
+def register_json_data(jsondata):
+    for _, sn in enumerate(jsondata["Scan ID"]):
+
+        print(f"Running registration for scan: {sn}")
+        analysis_folder = jsondata["Analysis Path"] / sn
+
+        for idx, cest_data in enumerate(jsondata["CEST Names"]):
+            print(f"Registering {cest_data}")
+            dir_test = list(
+                (analysis_folder / cest_data).glob("*{0}*.nii.gz".format(cest_data))
+            )
+
+            copy_offsets(
+                jsondata["Data Path"] / sn,
+                jsondata["Data Path"],
+                jsondata["Offset File Names"][idx],
+            )
+            # Create a new folder for Data analysis and run registration for that analysis
+            if not dir_test:
+                (analysis_folder / cest_data).mkdir(exist_ok=True, parents=True)
+
+                register_cest(
+                    PathToData=(jsondata["Data Path"] / sn),
+                    RefName=jsondata["Reference Name"],
+                    CESTName=cest_data,
+                    OffsetsName=jsondata["Offset File Names"][idx],
+                    OutFolder=(analysis_folder / cest_data),
+                    B1Name=jsondata["B1 Anatomical Name"],
+                    b1FAname=jsondata["B1 FA Name"],
+                    T1Name=jsondata["T1 Name"],
+                    RegDir=f"RegDir_{cest_data}",
+                )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1260,48 +1300,7 @@ def main():
 
     jsondata = json_file_parser(args.j_file)
 
-    for _, sn in enumerate(jsondata["Scan ID"]):
-
-        print(f"Running registration for scan: {sn}")
-        analysis_folder = jsondata["Analysis Path"] / sn
-
-        for idx, cest_data in enumerate(jsondata["CEST Names"]):
-            print(f"Registering {cest_data}")
-            dir_test = list(
-                (analysis_folder / cest_data).glob("*{0}*.nii.gz".format(cest_data))
-            )
-            # Copy offsets file into DataFolder
-            if not (
-                jsondata["Data Path"]
-                / sn
-                / "{0}.txt".format(jsondata["Offset File Names"][idx])
-            ).exists():
-                shutil.copyfile(
-                    str(
-                        jsondata["Data Path"]
-                        / "{0}.txt".format(jsondata["Offset File Names"][idx])
-                    ),
-                    str(
-                        jsondata["Data Path"]
-                        / sn
-                        / "{0}.txt".format(jsondata["Offset File Names"][idx])
-                    ),
-                )
-            # Create a new folder for Data analysis and run registration for that analysis
-            if not dir_test:
-                (analysis_folder / cest_data).mkdir(exist_ok=True, parents=True)
-
-                register_cest(
-                    PathToData=(jsondata["Data Path"] / sn),
-                    RefName=jsondata["Reference Name"],
-                    CESTName=cest_data,
-                    OffsetsName=jsondata["Offset File Names"][idx],
-                    OutFolder=(analysis_folder / cest_data),
-                    B1Name=jsondata["B1 Anatomical Name"],
-                    b1FAname=jsondata["B1 FA Name"],
-                    T1Name=jsondata["T1 Name"],
-                    RegDir=f"RegDir_{cest_data}",
-                )
+    register_json_data(jsondata)
 
 
 if __name__ == "__main__":
