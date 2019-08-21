@@ -121,9 +121,9 @@ def register_cest(
 
         # Need to deal with cases where same offsets are used over multiple CEST/MT datasets
         if isinstance(OffsetsName, (list, np.ndarray)):
-            offsetpath = sorted(PathToData.glob(f"*{OffsetsName[idx]}*.txt"))[0]
+            offsetpath = PathToData / OffsetsName[idx]
         else:
-            offsetpath = sorted(PathToData.glob(f"*{OffsetsName}*.txt"))[0]
+            offsetpath = PathToData /OffsetsName 
 
         offsets = np.sort(np.loadtxt(offsetpath))
 
@@ -358,7 +358,7 @@ def _reg_ref(
         if (
             cest_img.ndim <= 2
             or cest_img.shape[2] < 5
-            or cest_img.header.get_zooms()[2] * cest_img.shape[2] < 75
+            or cest_img.header.get_zooms()[2] * cest_img.shape[2] < 25
         ):
             btr.inputs.padding = True
         btr.run()
@@ -769,7 +769,7 @@ def _cestreg(
         betcest0.inputs.in_file = str(regdir / f"{cestoutname}_bc_restore.nii.gz")
         betcest0.inputs.out_file = str(regdir / f"{cestoutname}_prereg_brain.nii.gz")
         betcest0.inputs.mask = True
-        if cestvol.ndim <= 2 or cestvol.shape[3] < 5:
+        if cestvol.ndim <= 2 or cestvol.shape[3] < 5 or cest_img.header.get_zooms()[2] * cest_img.shape[2] < 25:
             betcest0.inputs.padding = True
         betcest0.run()
 
@@ -1232,12 +1232,22 @@ def json_to_dict(jsondata):
                 continue
             else:
                 raise JsonKeyError(f"Missing: '{key}' from json file")
+        
+        
 
         if not isinstance(jsondata[key], list):
             jsondata[key] = jsondata[key].split(".")[0]
 
         if key in ["Analysis Path", "Data Path"]:
             jsondata[key] = Path(jsondata[key])
+        elif key in ["CEST Names", "Scan ID", "Offset File Names"] and not isinstance(jsondata[key],list):
+            jsondata[key] = [jsondata[key]]
+        
+        
+        if key == "Offset File Names":
+            for idx, offset in enumerate(jsondata[key]):
+                if offset.split('.')[-1] != "txt":
+                    jsondata[key][idx] = f"{offset}.txt"
 
     return jsondata
 
