@@ -10,6 +10,7 @@ import nibabel as nib
 import argparse
 import sys
 import json
+import warnings
 
 # Used in case CEST is a 2D slice (for use registering other datasets to Ref)
 _slicenumber2d = list()
@@ -159,6 +160,8 @@ def register_cest(
     # Copy Offsets File into OutFolder
     shutil.copyfile(str(offsetpath), str(OutFolder / offsetpath.name))
 
+    print("Finished!")
+
     return None
 
 
@@ -296,10 +299,17 @@ def _reg_ref(
             str(regdir / "Ref_bc_restore.nii.gz"), str(regdir / "Ref_sROI.nii.gz")
         )
 
+    cestsplt = fsl.ExtractROI()
+    cestsplt.inputs.in_file = str(cestdir[0])
+    cestsplt.inputs.roi_file = str(regdir / "CEST_ref.nii.gz")
+    cestsplt.inputs.t_min = 0
+    cestsplt.inputs.t_size = 1
+    cestsplt.run()
+
     # Perform Bias Field Correction on CEST image
     if "ssfp" in cest_name:
         cestbet = fsl.BET()
-        cestbet.inputs.in_file = str(cestdir[0])
+        cestbet.inputs.in_file = str(regdir / "CEST_ref.nii.gz")
         cestbet.inputs.out_file = str(regdir / "CEST_brain.nii.gz")
         cestbet.inputs.padding = True
         cestbet.inputs.frac = 0.6
@@ -315,13 +325,14 @@ def _reg_ref(
         cestbc.run(ignore_exception=True)
     else:
         cestbc = fsl.FAST()
-        cestbc.inputs.in_files = str(cestdir[0])
+        cestbc.inputs.in_files = str(regdir / "CEST_ref.nii.gz")
         cestbc.inputs.out_basename = str(regdir / "CEST_bc")
         cestbc.inputs.output_biascorrected = True
         cestbc.inputs.output_biasfield = True
         cestbc.inputs.no_pve = True
         cestbc.inputs.output_type = "NIFTI_GZ"
         cestbc.run(ignore_exception=True)
+
 
     # Skull strip Reference and CEST Images
     if phantom:
@@ -508,10 +519,17 @@ def _b1resize(
             b1dir = str(b1dir[1])
         except IndexError:
             b1dir = str(b1dir[0])
+    
+    b1splt = fsl.ExtractROI()
+    b1splt.inputs.in_file = b1dir
+    b1splt.inputs.roi_file = str(regdir / "B1_1.nii.gz")
+    b1splt.inputs.t_size = 1
+    b1splt.inputs.t_min = 0
+    b1splt.run()
 
     # Run FAST on B1 input data to get better registration
     b1FAST = fsl.FAST()
-    b1FAST.inputs.in_files = b1dir
+    b1FAST.inputs.in_files = str(regdir / "B1_1.nii.gz")
     b1FAST.inputs.out_basename = str(regdir / "B1_bc")
     b1FAST.inputs.output_biascorrected = True
     b1FAST.inputs.no_pve = True
@@ -720,7 +738,7 @@ def _cestreg(
     fslroi.inputs.in_file = str(regdir / f"{cestoutname}_merged3_mcf.nii.gz")
     fslroi.inputs.roi_file = str(regdir / f"{cestoutname}_mcfMid.nii.gz")
     fslroi.inputs.t_min = 1
-    fslroi.inputs.t_size = n_ones.size
+    fslroi.inputs.t_size = len(n_ones) - 1
     fslroi.run()
 
     # Merge all CEST images together
@@ -769,7 +787,7 @@ def _cestreg(
         betcest0.inputs.in_file = str(regdir / f"{cestoutname}_bc_restore.nii.gz")
         betcest0.inputs.out_file = str(regdir / f"{cestoutname}_prereg_brain.nii.gz")
         betcest0.inputs.mask = True
-        if cestvol.ndim <= 2 or cestvol.shape[3] < 5 or cest_img.header.get_zooms()[2] * cest_img.shape[2] < 25:
+        if cestvol.ndim <= 2 or cestvol.shape[3] < 5 or cestvol.header.get_zooms()[2] * cestvol.shape[2] < 25:
             betcest0.inputs.padding = True
         betcest0.run()
 
@@ -1290,6 +1308,8 @@ def register_json_data(jsondata):
                     T1Name=jsondata["T1 Name"],
                     RegDir=f"RegDir_{cest_data}",
                 )
+            else:
+                warnings.warn(f"\nRegistration already peformed in directory:\n\t{analysis_folder / cest_data}")
 
 
 def main():
