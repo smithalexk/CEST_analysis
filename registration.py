@@ -1289,8 +1289,8 @@ def register_json_data(jsondata):
             )
 
             copy_offsets(
-                jsondata["Data Path"] / sn,
                 jsondata["Data Path"],
+                jsondata["Data Path"] / sn,
                 jsondata["Offset File Names"][idx],
             )
             # Create a new folder for Data analysis and run registration for that analysis
