@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 from CEST.CESTClass import CESTModel
 
+import warnings
 
 def create_fabber_ptrain_dataspec(
     offsetsfile,
@@ -117,6 +118,10 @@ def create_fabbercest_prompt(
     T1Name=None,
     jalapeno=False,
 ):
+    warnings.warn(
+        "the 'jalapeno' flag is deprecated in favour of placing all fabber calls in 'bin'",
+        DeprecationWarning
+    )
 
     # Creates Path object to directory where file will be created
     filename = OutFolder / (data_stem + ".sh")
@@ -126,14 +131,7 @@ def create_fabbercest_prompt(
         FID.write("#!/bin/sh\n\n")
 
         # If it will be on Jalapeno, use jalapeno flag to set proper executable directory
-        if jalapeno:
-            FID.write(
-                "/home/fs0/asmith/scratch/Fabber/fabber_models_cest/fabber_cest \\\n"
-            )
-        else:
-            FID.write(
-                "/Users/asmith/Documents/Research/Oxford/Fabber/fabber_models_cest/build/fabber_cest \\\n"
-            )
+        FID.write("fabber_cest \\\n")
 
         # Build rest of script
         FID.write(f"--data={data_stem}.nii.gz \\\n")
@@ -195,9 +193,7 @@ def create_fabbert1_prompt(
 
     with filename.open(mode="w") as FID:
         FID.write("#!/bin/sh\n\n")
-        FID.write(
-            "/Users/asmith/Documents/Research/Oxford/Fabber/fabber_models_T1/build/fabber_t1 \\\n"
-        )
+        FID.write("fabber_t1 \\\n")
 
         FID.write("--output=VFA_Output \\\n")
         FID.write(f"--data={t1name}.nii.gz \\\n")
@@ -245,7 +241,10 @@ def create_fabberqmt_prompt(
     lineshape="superlorentzian",
     jalapeno=False,
 ):
-
+    warnings.warn(
+        "the 'jalapeno' flag is deprecated in favour of placing all fabber calls in 'bin'",
+        DeprecationWarning
+    )
     # Creates Path object to directory where file will be created
     filename = OutFolder / (data_stem + ".sh")
 
@@ -253,16 +252,8 @@ def create_fabberqmt_prompt(
     with filename.open(mode="w") as FID:
         FID.write("#!/bin/sh\n\n")
 
-        # If it will be on Jalapeno, use jalapeno flag to set proper executable directory
-        if jalapeno:
-            FID.write(
-                "/home/fs0/asmith/scratch/Fabber/fabber_models_qMT/fabber_qMT \\\n"
-            )
-        else:
-            FID.write(
-                "/Users/asmith/Documents/Research/Oxford/Fabber/fabber_models_qmt/build/fabber_qmt \\\n"
-            )
-
+        FID.write("fabber_qMT \\\n")
+        
         # Build rest of script
         FID.write(f"--data={data_stem}.nii.gz \\\n")
         FID.write(f"--mask={maskname}.nii.gz \\\n")
