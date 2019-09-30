@@ -1282,34 +1282,35 @@ def register_json_data(jsondata):
         print(f"Running registration for scan: {sn}")
         analysis_folder = jsondata["Analysis Path"] / sn
 
-        for idx, cest_data in enumerate(jsondata["CEST Names"]):
-            print(f"Registering {cest_data}")
-            dir_test = list(
-                (analysis_folder / cest_data).glob("*{0}*.nii.gz".format(cest_data))
-            )
+        dir_test = list(
+            analysis_folder.glob("*{0}*.nii.gz".format(jsondata["CEST Names"][-1]))
+        )
 
+        if dir_test:
+            warnings.warn(f"\nRegistration already peformed in directory:\n\t{analysis_folder}")
+            continue
+        
+        for offset in jsondata["Offset File Names"]:
             copy_offsets(
                 jsondata["Data Path"],
                 jsondata["Data Path"] / sn,
-                jsondata["Offset File Names"][idx],
+                offset,
             )
-            # Create a new folder for Data analysis and run registration for that analysis
-            if not dir_test:
-                (analysis_folder / cest_data).mkdir(exist_ok=True, parents=True)
+        # Create a new folder for Data analysis and run registration for that analysis
+        analysis_folder.mkdir(exist_ok=True, parents=True)
 
-                register_cest(
-                    PathToData=(jsondata["Data Path"] / sn),
-                    RefName=jsondata["Reference Name"],
-                    CESTName=cest_data,
-                    OffsetsName=jsondata["Offset File Names"][idx],
-                    OutFolder=(analysis_folder / cest_data),
-                    B1Name=jsondata["B1 Anatomical Name"],
-                    b1FAname=jsondata["B1 FA Name"],
-                    T1Name=jsondata["T1 Name"],
-                    RegDir=f"RegDir_{cest_data}",
-                )
-            else:
-                warnings.warn(f"\nRegistration already peformed in directory:\n\t{analysis_folder / cest_data}")
+        register_cest(
+            PathToData=(jsondata["Data Path"] / sn),
+            RefName=jsondata["Reference Name"],
+            CESTName=jsondata["CEST Names"],
+            OffsetsName=jsondata["Offset File Names"],
+            OutFolder=analysis_folder,
+            B1Name=jsondata["B1 Anatomical Name"],
+            b1FAname=jsondata["B1 FA Name"],
+            T1Name=jsondata["T1 Name"],
+            RegDir=f"RegDir",
+        )
+            
 
 
 def main():
