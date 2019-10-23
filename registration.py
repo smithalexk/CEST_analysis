@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
+# Std Lib
 from pathlib import Path
 import shutil
 from math import ceil, radians
-import numpy as np
-from nipype.interfaces import fsl
-import nibabel as nib
 import argparse
 import sys
 import json
 import warnings
+
+# Conda
+import numpy as np
+import nibabel as nib
+from nipype.interfaces import fsl
 
 # Used in case CEST is a 2D slice (for use registering other datasets to Ref)
 _slicenumber2d = list()
