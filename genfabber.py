@@ -69,7 +69,7 @@ def create_fabber_ptrain_dataspec(
                     else:
                         FID.write(
                             "{0:.6E}\t{1:.6E}\t{2:.6E}{3}\n".format(
-                                offset, b1.B1amp * 1e-6, nCESTp, pp
+                                offset, b1.B1amp * 1e-6, nCESTp[ii], pp
                             )
                         )
         else:
@@ -84,7 +84,7 @@ def create_fabber_ptrain_dataspec(
                     else:
                         FID.write(
                             "{0:.6E}\t{1:.6E}\t{2:.6E}{3}\n".format(
-                                offset, b1.B1amp * 1e-6, nCESTp, pp
+                                offset, b1.B1amp * 1e-6, nCESTp[ii], pp
                             )
                         )
 
