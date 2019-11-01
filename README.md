@@ -33,5 +33,5 @@ If multiple MT/CEST files need to be registered to a single Reference image, the
 
 This tool registers CEST data using the logic shown below.  
 ![alt text](https://github.com/smithalexk/CEST_analysis/raw/master/images/Registration.png "CEST Motion Correction Pipeline")
-If there are offsets between ±1 ppm, the the registration tool with split the stack into three separate time-series of data. The > ±1 ppm data will be registered to the S0 image; then an co-registered image close to 1 ppm will be used as the reference to MCFLIRT the remaining volumes. The three separate time-series are then combined back into one time-series for further processing. If no offsets between ±1 ppm are detected (e.g., using MT data only), then the entire time-series will be coregistered to the S0 image.
+If there are offsets between ±1 ppm, the the registration tool with split the stack into three separate time-series of data. The > ±1 ppm data will be registered to the S<sub>0</sub> image; then a co-registered image close to 1 ppm is used as the reference to MCFLIRT the remaining volumes. The three separate time-series are then combined back into one time-series for further processing. If no offsets between ±1 ppm are detected (e.g., using MT data only), then the entire time-series will be coregistered to the S<sub>0</sub> image.
 
