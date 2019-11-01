@@ -1,7 +1,7 @@
 # Generate dataspec file
 from pathlib import Path
 import numpy as np
-from CEST.CESTClass import CESTModel
+from CESTClass import CESTModel
 
 import warnings
 
