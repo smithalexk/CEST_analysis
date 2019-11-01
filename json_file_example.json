@@ -1,0 +1,11 @@
+{
+    "Analysis Path": "/Path/To/Analysis/Folder", 
+    "Data Path": "/Path/To/Scans/Folder", 
+    "Scan ID": "/Name/of/Scan/Folder(s)", 
+    "Reference Name": "FileName", 
+    "CEST Names": "FileName", 
+    "T1 Name": "FileName", 
+    "B1 Anatomical Name": "FileName", 
+    "B1 FA Name": "FileName", 
+    "Offset File Names": "FileName"
+}
