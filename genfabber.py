@@ -16,8 +16,29 @@ def create_fabber_ptrain_dataspec(
     cwep=True,
     TR = 4,
     thetaEX = 90,
-    qmtspec = False
 ):
+    """Generates the ptrain and dataspec files for use in the FABBER CEST module
+    
+    Args:
+        offsetsfile (Path, str, list): Path/str (or list of Paths/str) to a file containing the offsets 
+            for a given CEST sequence. There should be a list for each saturation power.
+        specfile (Path, optional): Path to where the dataspect file should be generated. 
+            Defaults to CWD / "dataspec.txt".
+        ptrainfile (Path, optional): Path to where the ptrain file should be generated. 
+            Defaults to CWD / "ptrain.txt".
+        nCESTp (list, optional): List containing the number of pulses for each sequence. The list should 
+            equal the number of offset files provided. Defaults to [50].
+        pw (list, optional): List containing the pulse width for each pulse in the CEST pulse train for 
+            each sequence. The list should equal the number of offset files provided. Defaults to [20e-3 seconds].
+        dutycycle (list, optional): List containing the duty cycle for each sequence. The list should 
+            equal the number of offset files provided. Defaults to [0.5].
+        nomB1 (list, optional): List containing the nominal B1 for each CEST pulse train. The list should 
+            equal the number of offset files provided. Defaults to [180˚].
+        cwep (bool, optional): Flag for the Continuous Wave Equivalent Pulse approximation. Defaults to True.
+        TR (int, optional): The TR (interval between each CEST train) for the sequences. Defaults to 4 seconds.
+        thetaEX (int, optional): The Excitation pulse flip angle. Defaults to 90˚.
+    
+    """
 
     try:
         assert all(
@@ -31,10 +52,8 @@ def create_fabber_ptrain_dataspec(
             nCESTp
         ), "Length of offsetsfile needs to match that of other inputs"
 
-    if qmtspec:
-        pp = f"\t{TR:.6E}\t{thetaEX:.6E}"
-    else:
-        pp = ''
+
+    pp = ''
 
     for ii, bb in enumerate(nomB1):
         if isinstance(offsetsfile, list):
@@ -117,7 +136,27 @@ def create_fabbercest_prompt(
     B1Name=None,
     T1Name=None,
 ):
+    """Generates the BASH file to run FABBER CEST for the given dataset.
+    
+    Args:
+        data_stem (str): Name of the NIFTI file holding the CEST data (no extension).
+        dataspec_stem (str): Name of the dataspec file (no extension).
+        ptrain_stem (str): Name of the ptrain file (no extension).
+        poolmat_stem (str): Name of the poolmat file (no extension).
+        OutFolder (Path, str, optional): Path to the location where the analysis should be run. All input files should be located here as well. Defaults to Path.cwd().
+        maskname (str, optional): Name of the NIFTI file containing the data mask (no extension). Defaults to "Ref_Mask".
+        LineShape (str, optional): The lineshape used for the MT pool (superlorentzian, lorentzian, gaussian, Default: None).
+        TR (float, optional): The TR (seconds) for the sequences. Defaults to None.
+        thetaEX (float, optional): The excitation flip angle (degrees) for the sequences. Defaults to None.
+        B1Name (str, optional): The NIFTI filename of the B1 Map (no extension). Defaults to None.
+        T1Name (str, optional): The NIFTI filename of the T1 map (no extension). Defaults to None.
 
+    """
+
+    it = [x is None for x in [LineShape, TR, thetaEX]]
+    if any(it) and not all(it):
+        raise ParameterError("If one of (LineShape, TR, thetaEX) defined, all must be definied")
+    
     # Creates Path object to directory where file will be created
     filename = OutFolder / (data_stem + ".sh")
 
@@ -176,8 +215,19 @@ def create_fabbercest_prompt(
     return None
 
 def create_fabbert1_prompt(
-    t1name, maskname, TR=None, OutFolder=Path.cwd(), fas=[25, 20, 15, 5, 5], B1Name=None, IR=False
+    t1name, maskname, TR=None, OutFolder=Path.cwd(), fas=[25, 20, 15, 10, 5], B1Name=None, IR=False
 ):
+        """Generates the BASH file to run FABBER T1 for the given dataset.
+    
+    Args:
+        t1name (str): Name of the NIFTI file holding the T1 data (no extension).
+        maskname (str): Name of the NIFTI file containing the data mask (no extension). 
+        OutFolder (Path, str, optional): Path to the location where the analysis should be run. All input files should be located here as well. Defaults to Path.cwd().
+        fas (list, optional): The flip angles [degrees] or IR values [seconds] for the sequences. Defaults to [25, 20, 15, 10, 5].
+        B1Name (str, optional): The NIFTI filename of the B1 Map (no extension). Defaults to None.
+        IR (bool, optional): Flag to switch between VFA and IR methods of T1 estimation. Defaults to False.
+
+    """
     
     if not IR and TR is None:
         raise NoTRError(
@@ -221,5 +271,8 @@ def create_fabbert1_prompt(
     return None
 
 class NoTRError(Exception):
+    pass
+
+class ParameterError(Exception):
     pass
     
