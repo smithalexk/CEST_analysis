@@ -116,12 +116,7 @@ def create_fabbercest_prompt(
     thetaEX=None,
     B1Name=None,
     T1Name=None,
-    jalapeno=False,
 ):
-    warnings.warn(
-        "the 'jalapeno' flag is deprecated in favour of placing all fabber calls in 'bin'",
-        DeprecationWarning
-    )
 
     # Creates Path object to directory where file will be created
     filename = OutFolder / (data_stem + ".sh")
@@ -224,74 +219,6 @@ def create_fabbert1_prompt(
     filename.chmod(0o755)
 
     return None
-
-
-def create_fabberqmt_prompt(
-    data_stem,
-    dataspec_stem,
-    ptrain_stem,
-    poolmat_stem,
-    OutFolder=Path.cwd(),
-    maskname="Ref_Mask",
-    B1Name=None,
-    T1Name=None,
-    T10 = 1,
-    T2f0 = 80e-3,
-    T2m0 = 10e-6,
-    lineshape="superlorentzian",
-    jalapeno=False,
-):
-    warnings.warn(
-        "the 'jalapeno' flag is deprecated in favour of placing all fabber calls in 'bin'",
-        DeprecationWarning
-    )
-    # Creates Path object to directory where file will be created
-    filename = OutFolder / (data_stem + ".sh")
-
-    # Opens file and writes script
-    with filename.open(mode="w") as FID:
-        FID.write("#!/bin/sh\n\n")
-
-        FID.write("fabber_qMT \\\n")
-        
-        # Build rest of script
-        FID.write(f"--data={data_stem}.nii.gz \\\n")
-        FID.write(f"--mask={maskname}.nii.gz \\\n")
-        FID.write(
-            f"--method=vb --noise=white --model=qMT --data-order=singlefile \\\n"
-        )
-        FID.write(f"--max-iterations=20 --output={data_stem} \\\n")
-        FID.write(f"--spec={dataspec_stem}.txt --t12prior")
-        FID.write(f" --pools={poolmat_stem}.txt --ptrain={ptrain_stem}.txt \\\n")
-        FID.write(f"--save-model-fit --satspoil --lineshape={lineshape} \\\n")
-
-        FID.write(f"--T1={T10:.3E} --T2f={T2f0:.3E} --T2m={T2m0:.3E} ")
-
-        # psp counter is used to set the proper number of PSP_byname settings, will count from 1
-        pspcounter = 1
-        # Inputs B1 dataset
-        if B1Name is not None:
-            FID.write(
-                f"\\\n--PSP_byname{pspcounter}=B1corr --PSP_byname{pspcounter}_type=I "
-            )
-            FID.write(f"--PSP_byname{pspcounter}_image={B1Name}.nii.gz ")
-            FID.write(f"--PSP_byname{pspcounter}_prec=1e10 ")
-            pspcounter += 1
-
-        # Inputs T1 dataset
-        if T1Name is not None:
-            FID.write(
-                f"\\\n--PSP_byname{pspcounter}=T1 --PSP_byname{pspcounter}_type=I "
-            )
-            FID.write(f"--PSP_byname{pspcounter}_image={T1Name}.nii.gz ")
-            FID.write(f"--PSP_byname{pspcounter}_prec=1e10 ")
-            pspcounter += 1
-
-    # Set executable
-    filename.chmod(0o755)
-
-    return None
-
 
 class NoTRError(Exception):
     pass
