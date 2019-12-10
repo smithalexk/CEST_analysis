@@ -7,7 +7,12 @@ You can use [conda](https://conda.io/en/latest/) to install the required depende
 ```
 
 ## Registering Data
-The registration pipeline utilises [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/) as its backend, and therefore, FSL must be installed before using this tool. This tool can perform both 2D and 3D registration of CEST, B1, and VFA T1 time-series data to a reference image. To use the tool, run the following command:
+
+### Requirements:
+* [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/)
+
+### Running the tool
+The registration pipeline utilises FSL as its backend. This tool can perform both 2D and 3D registration of CEST, B1, and VFA T1 time-series data to a reference image. To use the tool, run the following command:
 ```
     python registration.py <Your-JSON-File>.json
 ```
