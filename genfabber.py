@@ -4,9 +4,10 @@
 # Generate dataspec file
 from pathlib import Path
 import numpy as np
-from CESTClass import CESTModel
+from assets.CESTClass import CESTModel
 
 import warnings
+
 
 def create_fabber_ptrain_dataspec(
     offsetsfile,
@@ -17,8 +18,8 @@ def create_fabber_ptrain_dataspec(
     dutycycle=[0.5],
     nomB1=[180],
     cwep=True,
-    TR = 4,
-    thetaEX = 90,
+    TR=4,
+    thetaEX=90,
 ):
     """Generates the ptrain and dataspec files for use in the FABBER CEST module
     
@@ -55,8 +56,7 @@ def create_fabber_ptrain_dataspec(
             nCESTp
         ), "Length of offsetsfile needs to match that of other inputs"
 
-
-    pp = ''
+    pp = ""
 
     for ii, bb in enumerate(nomB1):
         if isinstance(offsetsfile, list):
@@ -78,14 +78,14 @@ def create_fabber_ptrain_dataspec(
             B1Shape="Gauss",
             InterSpoil=False,
         )
-    
+
         if ii == 0:
             with specfile.open(mode="w") as FID:
                 for offset in ppmoffsets:
                     if cwep:
                         FID.write(
                             "{0:.6E}\t{1:.6E}\t{2:.6E}{3}\n".format(
-                                offset, b1.B1eCEST[0] * 1e-6, 1.0,pp
+                                offset, b1.B1eCEST[0] * 1e-6, 1.0, pp
                             )
                         )
                     else:
@@ -158,8 +158,10 @@ def create_fabbercest_prompt(
 
     it = [x is None for x in [LineShape, TR, thetaEX]]
     if any(it) and not all(it):
-        raise ParameterError("If one of (LineShape, TR, thetaEX) defined, all must be definied")
-    
+        raise ParameterError(
+            "If one of (LineShape, TR, thetaEX) defined, all must be definied"
+        )
+
     # Creates Path object to directory where file will be created
     filename = OutFolder / (data_stem + ".sh")
 
@@ -217,10 +219,17 @@ def create_fabbercest_prompt(
 
     return None
 
+
 def create_fabbert1_prompt(
-    t1name, maskname, TR=None, OutFolder=Path.cwd(), fas=[25, 20, 15, 10, 5], B1Name=None, IR=False
+    t1name,
+    maskname,
+    TR=None,
+    OutFolder=Path.cwd(),
+    fas=[25, 20, 15, 10, 5],
+    B1Name=None,
+    IR=False,
 ):
-        """Generates the BASH file to run FABBER T1 for the given dataset.
+    """Generates the BASH file to run FABBER T1 for the given dataset.
     
     Args:
         t1name (str): Name of the NIFTI file holding the T1 data (no extension).
@@ -231,12 +240,10 @@ def create_fabbert1_prompt(
         IR (bool, optional): Flag to switch between VFA and IR methods of T1 estimation. Defaults to False.
 
     """
-    
+
     if not IR and TR is None:
-        raise NoTRError(
-                "No TR specified for VFA T1 Data!\nProvide a TR to proceed!"
-            )
-    
+        raise NoTRError("No TR specified for VFA T1 Data!\nProvide a TR to proceed!")
+
     filename = OutFolder / "VFA_FABBER.sh"
 
     with filename.open(mode="w") as FID:
@@ -261,7 +268,7 @@ def create_fabbert1_prompt(
             FID.write("--model=vfa --fas-file=VFA_FAs.txt \\\n")
         FID.write("--spatial --noise=white \\\n")
         FID.write("--data-order=singlefile --save-model-fit \\\n")
-        
+
         if not IR:
             FID.write(f"--tr={TR:.6E} \\\n")
 
@@ -273,9 +280,11 @@ def create_fabbert1_prompt(
 
     return None
 
+
 class NoTRError(Exception):
     pass
 
+
 class ParameterError(Exception):
     pass
-    
+

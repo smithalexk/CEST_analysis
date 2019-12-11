@@ -127,7 +127,7 @@ def register_cest(
         if isinstance(OffsetsName, (list, np.ndarray)):
             offsetpath = PathToData / OffsetsName[idx]
         else:
-            offsetpath = PathToData /OffsetsName 
+            offsetpath = PathToData / OffsetsName
 
         offsets = np.sort(np.loadtxt(offsetpath))
 
@@ -336,7 +336,6 @@ def _reg_ref(
         cestbc.inputs.output_type = "NIFTI_GZ"
         cestbc.run(ignore_exception=True)
 
-
     # Skull strip Reference and CEST Images
     if phantom:
         fmaths = fsl.ImageMaths()
@@ -522,7 +521,7 @@ def _b1resize(
             b1dir = str(b1dir[1])
         except IndexError:
             b1dir = str(b1dir[0])
-    
+
     b1splt = fsl.ExtractROI()
     b1splt.inputs.in_file = b1dir
     b1splt.inputs.roi_file = str(regdir / "B1_1.nii.gz")
@@ -790,7 +789,11 @@ def _cestreg(
         betcest0.inputs.in_file = str(regdir / f"{cestoutname}_bc_restore.nii.gz")
         betcest0.inputs.out_file = str(regdir / f"{cestoutname}_prereg_brain.nii.gz")
         betcest0.inputs.mask = True
-        if cestvol.ndim <= 2 or cestvol.shape[3] < 5 or cestvol.header.get_zooms()[2] * cestvol.shape[2] < 25:
+        if (
+            cestvol.ndim <= 2
+            or cestvol.shape[3] < 5
+            or cestvol.header.get_zooms()[2] * cestvol.shape[2] < 25
+        ):
             betcest0.inputs.padding = True
         betcest0.run()
 
@@ -1253,21 +1256,20 @@ def json_to_dict(jsondata):
                 continue
             else:
                 raise JsonKeyError(f"Missing: '{key}' from json file")
-        
-        
 
         if not isinstance(jsondata[key], list):
             jsondata[key] = jsondata[key].split(".")[0]
 
         if key in ["Analysis Path", "Data Path"]:
             jsondata[key] = Path(jsondata[key])
-        elif key in ["CEST Names", "Scan ID", "Offset File Names"] and not isinstance(jsondata[key],list):
+        elif key in ["CEST Names", "Scan ID", "Offset File Names"] and not isinstance(
+            jsondata[key], list
+        ):
             jsondata[key] = [jsondata[key]]
-        
-        
+
         if key == "Offset File Names":
             for idx, offset in enumerate(jsondata[key]):
-                if offset.split('.')[-1] != "txt":
+                if offset.split(".")[-1] != "txt":
                     jsondata[key][idx] = f"{offset}.txt"
 
     return jsondata
@@ -1290,15 +1292,13 @@ def register_json_data(jsondata):
         )
 
         if dir_test:
-            warnings.warn(f"\nRegistration already peformed in directory:\n\t{analysis_folder}")
-            continue
-        
-        for offset in jsondata["Offset File Names"]:
-            copy_offsets(
-                jsondata["Data Path"],
-                jsondata["Data Path"] / sn,
-                offset,
+            warnings.warn(
+                f"\nRegistration already peformed in directory:\n\t{analysis_folder}"
             )
+            continue
+
+        for offset in jsondata["Offset File Names"]:
+            copy_offsets(jsondata["Data Path"], jsondata["Data Path"] / sn, offset)
         # Create a new folder for Data analysis and run registration for that analysis
         analysis_folder.mkdir(exist_ok=True, parents=True)
 
@@ -1313,7 +1313,6 @@ def register_json_data(jsondata):
             T1Name=jsondata["T1 Name"],
             RegDir=f"RegDir",
         )
-            
 
 
 def main():
